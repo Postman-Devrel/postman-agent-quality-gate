@@ -3,6 +3,7 @@ name: self-test
 
 on:
   push:
+    branches: ['**']
   pull_request:
   workflow_dispatch:
 
