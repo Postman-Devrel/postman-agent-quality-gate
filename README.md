@@ -70,3 +70,7 @@ It ships three things:
 - **A live pane** (a Claude Code mod, hooks module in `plugin/hooks/`): `/gate` and `/gate-all` show local and CI scores per branch and PR, the detail and what to fix; `/gate-band` toggles a band above the prompt. Needs `git` and an authenticated `gh`. Options (`/config`, or `pluginConfigs`): `workflow` (default `quality-gate`) and `resultsDir` (default `gate-results`, git-ignore it). A report with an unknown `schema_version` is read best effort and flagged.
 
 To plug it into your own coder, name `gate-verdict` and `gate-loop` in the coding agent's instructions (for example in `CLAUDE.md`): "after every push, follow the gate-loop skill". The brief is plain text with no tool names, so it works with any coding agent. Mod tests: `claude plugin test plugin`.
+
+## License
+
+Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
