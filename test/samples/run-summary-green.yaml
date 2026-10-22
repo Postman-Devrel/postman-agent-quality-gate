@@ -1,0 +1,30 @@
+kind: postman-cli-collection-run-summary
+schemaVersion: 1
+runId: 00000000-0000-0000-0000-000000000002
+state: completed
+meta:
+  collection:
+    id: 00000000-0000-0000-0000-000000000003
+    name: Appointments API
+  environment:
+    id: 00000000-0000-0000-0000-000000000004
+    name: null
+  durationMs: 140
+stats:
+  iterations:
+    executed: 1
+    errors: 0
+  executedRequests:
+    executed: 10
+    errors: 0
+  prerequestScripts:
+    executed: 0
+    errors: 0
+  postresponseScripts:
+    executed: 10
+    errors: 0
+  tests:
+    executed: 10
+    failed: 0
+failures: []
+executionsRecorded: 10

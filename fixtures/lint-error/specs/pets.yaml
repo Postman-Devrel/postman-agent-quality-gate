@@ -1,0 +1,128 @@
+openapi: 3.1.0
+info:
+  title: Pets API
+  version: 1.0.0
+  description: A tiny pet shop API used as a fixture for the quality gate.
+  contact:
+    name: API team
+    email: api@example.com
+servers:
+  - url: http://localhost:8080
+    description: Local development
+tags:
+  - name: Pets
+    description: Operations on pets.
+paths:
+  /pets:
+    get:
+      operationId: listPets
+      summary: List pets
+      description: Returns every pet, optionally filtered by status.
+      tags: [Pets]
+      parameters:
+        - name: status
+          in: query
+          required: false
+          description: Only return pets with this status.
+          schema:
+            type: string
+            enum: [available, sold]
+      responses:
+        '200':
+          description: A list of pets.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Pet'
+              example:
+                - id: 1
+                  name: Rex
+                  status: available
+        '500':
+          $ref: '#/components/responses/ServerError'
+    post:
+      operationId: createPet
+      summary: Create a pet
+      description: Adds a pet to the shop.
+      tags: [Pets]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Missing'
+            example:
+              name: Rex
+      responses:
+        '201':
+          description: The created pet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+              example:
+                id: 1
+                name: Rex
+                status: available
+        '400':
+          description: The request body is invalid.
+        '500':
+          $ref: '#/components/responses/ServerError'
+  /pets/{petId}:
+    get:
+      operationId: getPet
+      summary: Get a pet
+      description: Returns one pet by its identifier.
+      tags: [Pets]
+      parameters:
+        - name: petId
+          in: path
+          required: false
+          description: Identifier of the pet.
+          schema:
+            type: integer
+      responses:
+        '200':
+          description: The pet.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Pet'
+              example:
+                id: 1
+                name: Rex
+                status: available
+        '404':
+          description: No pet has this identifier.
+        '500':
+          $ref: '#/components/responses/ServerError'
+components:
+  responses:
+    ServerError:
+      description: Unexpected error.
+  schemas:
+    NewPet:
+      type: object
+      description: A pet to create.
+      required: [name]
+      properties:
+        name:
+          type: string
+          description: Name of the pet.
+    Pet:
+      type: object
+      description: A pet of the shop.
+      required: [id, name, status]
+      properties:
+        id:
+          type: integer
+          description: Identifier of the pet.
+        name:
+          type: string
+          description: Name of the pet.
+        status:
+          type: string
+          description: Sale status of the pet.
+          enum: [available, sold]

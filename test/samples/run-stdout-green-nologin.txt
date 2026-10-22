@@ -1,0 +1,52 @@
+No authorization data found. Please use the `postman login` command.
+Refer:https://learning.postman.com/docs/postman-cli/postman-cli-options/#postman-login
+
+Starting mock server...
+Preparing dataset support... (one-time setup, ~5s)
+Mock server started: pqg-mock at http://localhost:50204
+Redirecting {{baseUrl}} -> http://localhost:50204 (scenario: default)
+Running your collection...
+postman
+
+Pets API
+
+Folder Pets
+Sub-folder List pets
+
+  GET http://localhost:50204/pets [200 OK, 207 B, 3 ms]
+  Pass  200 and a list of pets with id, name and status
+
+Sub-folder Create a pet
+
+  POST http://localhost:50204/pets [201 Created, 210 B, 877 us]
+  Pass  201 and the created pet
+
+Sub-folder Get a pet
+
+  GET http://localhost:50204/pets/1 [200 OK, 205 B, 648 us]
+  Pass  200 and a pet with id, name and status
+
+--------------------------------------------------------------------
+|                         |           executed |            failed |
+--------------------------+--------------------+--------------------
+|              iterations |                  1 |                 0 |
+--------------------------+--------------------+--------------------
+|                requests |                  3 |                 0 |
+--------------------------+--------------------+--------------------
+|            test-scripts |                  3 |                 0 |
+--------------------------+--------------------+--------------------
+|      prerequest-scripts |                  0 |                 0 |
+--------------------------+--------------------+--------------------
+|              assertions |                  3 |                 0 |
+--------------------------+--------------------+--------------------
+|         mocked requests |                  3 |                 0 |
+--------------------------+--------------------+--------------------
+|         mock assertions |                  3 |                 0 |
+--------------------------------------------------------------------
+| total run duration: 116 ms                                       |
+--------------------------------------------------------------------
+| total data received: 128 B (approx)                              |
+--------------------------------------------------------------------
+| average response time: 1 ms [min: 648 us, max: 3 ms, s.d.: 1 ms] |
+--------------------------------------------------------------------
+Mock server stopped

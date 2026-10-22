@@ -1,0 +1,15 @@
+$kind: http-request
+description: Lists the pets.
+url: '{{baseUrl}}/pets'
+method: GET
+order: 1000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |
+      pm.test("200 and a list of pets with id, name and status", () => {
+        pm.response.to.have.status(200);
+        const body = pm.response.json();
+        pm.expect(body).to.be.an("array");
+        body.forEach((p) => pm.expect(p).to.include.all.keys("id", "name", "status"));
+      });

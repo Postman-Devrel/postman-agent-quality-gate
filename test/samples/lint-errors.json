@@ -1,0 +1,28 @@
+{
+  "violations": [
+    {
+      "file": "lint-error/specs/pets.yaml",
+      "line number": "55",
+      "path": "paths./pets.post.requestBody.content.application/json.schema.$ref",
+      "severity": "ERROR",
+      "issue": "'#/components/schemas/Missing' does not exist",
+      "issue type": "Syntax"
+    },
+    {
+      "file": "lint-error/specs/pets.yaml",
+      "line number": "80",
+      "path": "paths./pets/{petId}.get.parameters.0",
+      "severity": "WARNING",
+      "issue": "Path parameter \"petId\" must have \"required\" property that is set to \"true\".",
+      "issue type": "Syntax"
+    },
+    {
+      "file": "lint-error/specs/pets.yaml",
+      "line number": "82",
+      "path": "paths./pets/{petId}.get.parameters.0.required",
+      "severity": "ERROR",
+      "issue": "must be equal to constant",
+      "issue type": "Syntax"
+    }
+  ]
+}

@@ -1,0 +1,196 @@
+# Reusable workflow: the Postman agent quality gate for a project that has a Postman project (spec, collection).
+#
+# Caller (in the project, e.g. .github/workflows/quality-gate.yml):
+#   on: { push: {}, pull_request: {} }
+#   jobs:
+#     gate:
+#       uses: Postman-Devrel/postman-agent-quality-gate/.github/workflows/gate.yml@v1
+#       secrets: { POSTMAN_API_KEY: "${{ secrets.POSTMAN_API_KEY }}" }
+#       permissions: { contents: read, pull-requests: write, actions: read }
+#
+# changes -> one job per step (matrix) -> aggregate, comment, decide. The gate runs only when something it
+# judges changed (the Postman project, the config file, extra paths); otherwise the "quality-gate" job succeeds
+# at once and says why, so it can still be a required check. It runs in CI, outside the coding agent.
+#
+# Versioning: this workflow runs the gate code through the composite action referenced below at the SAME major
+# tag as the workflow itself (see docs/architecture.md, "One tag, two references"). Keep the two in step.
+name: gate
+
+on:
+  workflow_call:
+    inputs:
+      config:
+        description: Config file of the project (optional, default quality-gate.yml at the root).
+        type: string
+        default: ''
+      extra-paths:
+        description: "Extra paths that make the gate relevant, as an ERE alternation, e.g. 'src/|openapi/'."
+        type: string
+        default: ''
+      steps:
+        description: JSON list of the steps to run (a step disabled in the config is skipped).
+        type: string
+        default: '["skills-check","contract-lint","contract-tests","coverage","ai-readiness","impact"]'
+      working-directory:
+        description: Folder of the project (where .postman/ lives) when it is not the repository root.
+        type: string
+        default: '.'
+    secrets:
+      POSTMAN_API_KEY:
+        description: API key of the Postman team. Without it the steps that need the cloud are not_available.
+        required: false
+
+# One run per branch: a new push (or the PR event for the same branch) replaces the previous run.
+# The group name differs from the caller's own groups on purpose (same names would cancel each other).
+concurrency:
+  group: postman-agent-quality-gate-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  changes:
+    runs-on: ubuntu-latest
+    outputs:
+      relevant: ${{ steps.diff.outputs.relevant }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - id: paths
+        uses: Postman-Devrel/postman-agent-quality-gate@v1
+        with:
+          mode: paths
+          config: ${{ inputs.config }}
+          working-directory: ${{ inputs.working-directory }}
+      - id: diff
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REF_NAME: ${{ github.ref_name }}
+          FROM_PROJECT: ${{ steps.paths.outputs.relevant-regex }}
+          EXTRA: ${{ inputs.extra-paths }}
+          WORKDIR: ${{ inputs.working-directory }}
+        run: |
+          # What the gate judges: the Postman project (.postman/, spec, collection), the config file, extra paths.
+          # Paths are relative to the working directory; make them relative to the repository root.
+          RELEVANT="$FROM_PROJECT"
+          if [ "$WORKDIR" != "." ]; then RELEVANT="^${WORKDIR%/}/(${FROM_PROJECT#^(}"; fi
+          if [ -n "$EXTRA" ]; then RELEVANT="($RELEVANT|^($EXTRA))"; fi
+          relevant=true
+          if [ "$EVENT" != "workflow_dispatch" ]; then
+            # A branch is judged on what it changes against the default branch, as a PR is: the push run and
+            # the pull_request run of the same branch must reach the same decision. Only a push to the default
+            # branch is compared with what was there before it.
+            if [ "$EVENT" = "pull_request" ]; then base="origin/$BASE_REF"
+            elif [ "$REF_NAME" = "$DEFAULT_BRANCH" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then base="$BEFORE"
+            else base="origin/$DEFAULT_BRANCH"; fi
+            if files="$(git diff --name-only "$base"...HEAD 2>/dev/null)"; then
+              echo "Changed files against $base:"; echo "$files"
+              if ! echo "$files" | grep -Eq "$RELEVANT"; then relevant=false; fi
+            else
+              echo "Could not diff against $base: running the gate to be safe."
+            fi
+          fi
+          echo "relevant=$relevant" >> "$GITHUB_OUTPUT"
+          echo "Gate needed: $relevant"
+
+  gate:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        step: ${{ fromJSON(inputs.steps) }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0 # the impact step diffs the spec against the base branch
+      - name: Run the step (it never fails the job, the aggregate job decides)
+        uses: Postman-Devrel/postman-agent-quality-gate@v1
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+          GATE_BASE_REF: origin/${{ github.base_ref || github.event.repository.default_branch }}
+        with:
+          mode: run
+          step: ${{ matrix.step }}
+          config: ${{ inputs.config }}
+          working-directory: ${{ inputs.working-directory }}
+          results-dir: ${{ github.workspace }}/gate-results
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: gate-${{ matrix.step }}
+          path: gate-results/${{ matrix.step }}.json
+          if-no-files-found: warn
+
+  quality-gate:
+    needs: [changes, gate]
+    # Decide even when a gate job crashed (a missing result counts as not_available), but not when the
+    # whole run was cancelled by the concurrency group: that run has no results and must not report a failure.
+    if: ${{ always() && !cancelled() }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write # to post the report comment
+      actions: read
+    steps:
+      - name: Gate not needed for this change
+        if: needs.changes.outputs.relevant != 'true'
+        run: |
+          { echo "### Quality gate skipped"; echo; echo "No file the gate judges changed (Postman project, config file, extra paths). Nothing to score."; } >> "$GITHUB_STEP_SUMMARY"
+          mkdir -p gate-results
+          echo '{"skipped":true,"reason":"no relevant change"}' > gate-results/report.json
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        if: needs.changes.outputs.relevant == 'true'
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        if: needs.changes.outputs.relevant == 'true'
+        with:
+          pattern: gate-*
+          path: gate-results
+          merge-multiple: true
+      - name: Aggregate (score, rating, report, job summary)
+        if: needs.changes.outputs.relevant == 'true'
+        uses: Postman-Devrel/postman-agent-quality-gate@v1
+        with:
+          mode: aggregate
+          config: ${{ inputs.config }}
+          working-directory: ${{ inputs.working-directory }}
+          results-dir: ${{ github.workspace }}/gate-results
+      - name: Post or update the PR comment
+        if: needs.changes.outputs.relevant == 'true' && github.event_name != 'workflow_dispatch'
+        continue-on-error: true # fork PRs get a read-only token
+        uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        with:
+          script: |
+            const fs = require('fs');
+            const body = fs.readFileSync('gate-results/report.md', 'utf8');
+            const marker = '<!-- postman-agent-quality-gate -->';
+            const { owner, repo } = context.repo;
+            // pull_request event: the PR is in the context. push event: look up the open PR of the branch.
+            let issue_number = context.payload.pull_request?.number;
+            if (!issue_number) {
+              const prs = await github.rest.pulls.list({ owner, repo, state: 'open', head: `${owner}:${process.env.GITHUB_REF_NAME}` });
+              issue_number = prs.data[0]?.number;
+            }
+            if (!issue_number) { core.info('No open PR for this branch: report is in the job summary.'); return; }
+            const comments = await github.paginate(github.rest.issues.listComments, { owner, repo, issue_number });
+            const existing = comments.find((c) => c.body && c.body.includes(marker));
+            if (existing) {
+              await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else {
+              await github.rest.issues.createComment({ owner, repo, issue_number, body });
+            }
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: gate-report
+          path: gate-results/report.*
+      - name: Fail the check when the gate fails
+        if: needs.changes.outputs.relevant == 'true'
+        run: |
+          passed="$(node -p "require('./gate-results/report.json').passed")"
+          [ "$passed" = "true" ] || { echo "Quality gate failed"; exit 1; }

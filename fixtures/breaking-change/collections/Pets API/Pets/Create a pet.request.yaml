@@ -1,0 +1,19 @@
+$kind: http-request
+description: Creates a pet.
+url: '{{baseUrl}}/pets'
+method: POST
+headers:
+  - key: Content-Type
+    value: application/json
+body:
+  type: json
+  content: '{"name": "Rex"}'
+order: 2000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |
+      pm.test("201 and the created pet", () => {
+        pm.response.to.have.status(201);
+        pm.expect(pm.response.json()).to.include.all.keys("id", "name", "status");
+      });

@@ -1,0 +1,3 @@
+{"status":"completed","result":{"answer":"Prose, not JSON.","citations":[{"name":"patients-service"}],
+ "structured":{"results":[{"tool":"run_typed_query","data":{"dependencies":[
+  {"api":{"name":"patients-service"},"protocol":"http","confidence":0.9,"endpoints_called":["GET /api/appointments/"]}]}}]}}}

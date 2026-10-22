@@ -1,0 +1,47 @@
+kind: postman-cli-collection-run-summary
+schemaVersion: 1
+runId: 00000000-0000-0000-0000-000000000005
+state: completed
+meta:
+  collection:
+    id: 00000000-0000-0000-0000-000000000006
+    name: Pets API
+stats:
+  iterations:
+    executed: 1
+    errors: 0
+  executedRequests:
+    executed: 3
+    errors: 0
+  tests:
+    executed: 3
+    failed: 3
+failures:
+- at: assertion:0 in test-script
+  source:
+    name: List pets
+    id: 00000000-0000-0000-0000-000000000010
+  error:
+    name: AssertionError
+    message: 'expected { id: 1, name: ''Rex'', …(1) } to contain keys ''id'', ''name'',
+      and ''status'''
+    test: 200 and a list of pets with id, name and status
+- at: assertion:0 in test-script
+  source:
+    name: Create a pet
+    id: 00000000-0000-0000-0000-000000000011
+  error:
+    name: AssertionError
+    message: 'expected { id: 1, name: ''Rex'', …(1) } to contain keys ''id'', ''name'',
+      and ''status'''
+    test: 201 and the created pet
+- at: assertion:0 in test-script
+  source:
+    name: Get a pet
+    id: 00000000-0000-0000-0000-000000000012
+  error:
+    name: AssertionError
+    message: 'expected { id: 1, name: ''Rex'', …(1) } to contain keys ''id'', ''name'',
+      and ''status'''
+    test: 200 and a pet with id, name and status
+executionsRecorded: 3

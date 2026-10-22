@@ -1,0 +1,69 @@
+No authorization data found. Please use the `postman login` command.
+Refer:https://learning.postman.com/docs/postman-cli/postman-cli-options/#postman-login
+
+Starting mock server...
+Preparing dataset support... (one-time setup, ~5s)
+Mock server started: pqg-mock at http://localhost:50242
+Redirecting {{baseUrl}} -> http://localhost:50242 (scenario: default)
+Running your collection...
+postman
+
+Pets API
+
+Folder Pets
+Sub-folder List pets
+
+  GET http://localhost:50242/pets [200 OK, 206 B, 3 ms]
+  1. 200 and a list of pets with id, name and status
+
+Sub-folder Create a pet
+
+  POST http://localhost:50242/pets [201 Created, 209 B, 814 us]
+  2. 201 and the created pet
+
+Sub-folder Get a pet
+
+  GET http://localhost:50242/pets/1 [200 OK, 204 B, 685 us]
+  3. 200 and a pet with id, name and status
+
+--------------------------------------------------------------------
+|                         |           executed |            failed |
+--------------------------+--------------------+--------------------
+|              iterations |                  1 |                 0 |
+--------------------------+--------------------+--------------------
+|                requests |                  3 |                 0 |
+--------------------------+--------------------+--------------------
+|            test-scripts |                  3 |                 0 |
+--------------------------+--------------------+--------------------
+|      prerequest-scripts |                  0 |                 0 |
+--------------------------+--------------------+--------------------
+|              assertions |                  3 |                 3 |
+--------------------------+--------------------+--------------------
+|         mocked requests |                  3 |                 0 |
+--------------------------+--------------------+--------------------
+|         mock assertions |                  3 |                 3 |
+--------------------------------------------------------------------
+| total run duration: 116 ms                                       |
+--------------------------------------------------------------------
+| total data received: 125 B (approx)                              |
+--------------------------------------------------------------------
+| average response time: 1 ms [min: 685 us, max: 3 ms, s.d.: 1 ms] |
+--------------------------------------------------------------------
+
+  #  failure         detail                                                                           
+                                                                                                      
+ 1.  AssertionError  200 and a list of pets with id, name and status                                  
+                     expected { id: 1, name: 'Rex', …(1) } to contain keys 'id', 'name', and 'status' 
+                     at assertion:0 in test-script                                                    
+                     inside "Pets / List pets"                                                        
+                                                                                                      
+ 2.  AssertionError  201 and the created pet                                                          
+                     expected { id: 1, name: 'Rex', …(1) } to contain keys 'id', 'name', and 'status' 
+                     at assertion:0 in test-script                                                    
+                     inside "Pets / Create a pet"                                                     
+                                                                                                      
+ 3.  AssertionError  200 and a pet with id, name and status                                           
+                     expected { id: 1, name: 'Rex', …(1) } to contain keys 'id', 'name', and 'status' 
+                     at assertion:0 in test-script                                                    
+                     inside "Pets / Get a pet"                                                        
+Mock server stopped

@@ -1,0 +1,23 @@
+{
+  "name": "postman-agent-quality-gate",
+  "version": "0.1.0",
+  "description": "A quality gate for API projects that depends only on the Postman project (spec, collection, workspace).",
+  "private": true,
+  "license": "UNLICENSED",
+  "main": "core/index.js",
+  "bin": {
+    "postman-agent-quality-gate": "bin/postman-agent-quality-gate.js"
+  },
+  "engines": {
+    "node": ">=22"
+  },
+  "postmanCli": "1.76.0",
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "test:cli": "PQG_CLI_TESTS=1 node --test \"test/*.test.js\"",
+    "gate": "node bin/postman-agent-quality-gate.js run"
+  },
+  "dependencies": {
+    "yaml": "^2.8.1"
+  }
+}

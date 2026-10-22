@@ -1,0 +1,58 @@
+# Tests of the gate itself: unit tests, then the fixtures through the composite action of THIS checkout.
+name: self-test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: self-test-${{ github.head_ref || github.ref_name }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  unit:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+        with:
+          node-version: '22'
+      - run: npm ci
+      - run: npm test
+
+  fixtures:
+    needs: unit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { fixture: green,            expect: 'true' }
+          - { fixture: lint-error,       expect: 'false' }
+          - { fixture: breaking-change,  expect: 'false' }
+          - { fixture: unsupported-spec, expect: 'false' }
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+      - name: Run the gate on the fixture, with the local action (the code of this checkout)
+        uses: ./
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+        with:
+          working-directory: fixtures/${{ matrix.fixture }}
+          results-dir: ${{ github.workspace }}/gate-results
+      - name: The verdict is the expected one
+        env:
+          EXPECT: ${{ matrix.expect }}
+        run: |
+          passed="$(node -p "require('./gate-results/report.json').passed")"
+          echo "passed=$passed, expected=$EXPECT"
+          [ "$passed" = "$EXPECT" ]
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: fixture-${{ matrix.fixture }}
+          path: gate-results/report.*

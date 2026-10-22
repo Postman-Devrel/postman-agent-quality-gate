@@ -1,0 +1,88 @@
+name: Postman agent quality gate
+description: Runs the quality gate steps (or the aggregation) on a project that has a Postman project (spec, collection).
+author: Postman
+
+inputs:
+  mode:
+    description: "run (default): run the step(s), paths: print the files the gate judges, aggregate: score the step results."
+    default: run
+  step:
+    description: "A step id (contract-lint, ...) or empty for all enabled steps followed by the aggregation."
+    default: ''
+  config:
+    description: Path of the config file, relative to the working directory. Default quality-gate.yml (optional).
+    default: ''
+  results-dir:
+    description: Folder of the step results and of the report.
+    default: gate-results
+  working-directory:
+    description: Folder of the project to judge (where .postman/ lives).
+    default: .
+  no-exit-code:
+    description: "'true' (default) never fails the step: the final check of the workflow decides."
+    default: 'true'
+
+outputs:
+  relevant-regex:
+    description: "mode=paths: ERE (git ls-style, repo-relative) matching the files the gate judges."
+    value: ${{ steps.paths.outputs.regex }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@49933ea5288caeca8642d1e84afbd3f7d6820020 # v4.4.0
+      with:
+        node-version: '22'
+    - name: Install the runner dependencies
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: npm ci --omit=dev --prefix "$ACTION_PATH" --no-audit --no-fund
+    - name: Install the pinned Postman CLI
+      if: inputs.mode == 'run'
+      shell: bash
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+      run: |
+        version="$(node -p "require(process.env.ACTION_PATH + '/package.json').postmanCli")"
+        npm install -g "postman-cli@${version}" --no-audit --no-fund
+    - name: Log in to Postman
+      if: inputs.mode == 'run'
+      shell: bash
+      # The key is read from the environment of the calling step (env: POSTMAN_API_KEY) and never printed.
+      # Without it (fork pull request) the steps that need the cloud report not_available.
+      run: |
+        if [ -n "${POSTMAN_API_KEY:-}" ]; then
+          postman login --with-api-key "$POSTMAN_API_KEY" > /dev/null
+        else
+          echo "POSTMAN_API_KEY is not set: cloud-backed steps will be not_available"
+        fi
+    - id: paths
+      if: inputs.mode == 'paths'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        CONFIG: ${{ inputs.config }}
+      run: |
+        args=(); [ -n "$CONFIG" ] && args+=(--config "$CONFIG")
+        regex="$(node "$ACTION_PATH/bin/postman-agent-quality-gate.js" paths "${args[@]}")"
+        echo "regex=$regex" >> "$GITHUB_OUTPUT"
+    - name: Run the gate, a step never fails the job (the aggregation decides)
+      if: inputs.mode == 'run' || inputs.mode == 'aggregate'
+      shell: bash
+      working-directory: ${{ inputs.working-directory }}
+      env:
+        ACTION_PATH: ${{ github.action_path }}
+        MODE: ${{ inputs.mode }}
+        STEP: ${{ inputs.step }}
+        CONFIG: ${{ inputs.config }}
+        RESULTS_DIR: ${{ inputs.results-dir }}
+        NO_EXIT_CODE: ${{ inputs.no-exit-code }}
+      run: |
+        args=("$MODE")
+        [ "$MODE" = run ] && [ -n "$STEP" ] && args+=("$STEP")
+        args+=(--results-dir "$RESULTS_DIR")
+        [ -n "$CONFIG" ] && args+=(--config "$CONFIG")
+        [ "$NO_EXIT_CODE" = true ] && args+=(--no-exit-code)
+        node "$ACTION_PATH/bin/postman-agent-quality-gate.js" "${args[@]}"

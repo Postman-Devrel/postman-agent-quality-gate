@@ -1,0 +1,16 @@
+{
+  "askId": "00000000-0000-0000-0000-000000000001",
+  "id": "00000000-0000-0000-0000-000000000001",
+  "status": "completed",
+  "question": "List the services that consume appointments-service ... Reply with ONLY a JSON array.",
+  "result": {
+    "answer": "[{\"name\": \"patients-service\", \"endpoint\": \"GET /api/appointments/\", \"protocol\": \"http\", \"confidence\": 1.0}]",
+    "citations": [{ "name": "patients-service" }],
+    "structured": {
+      "results": [
+        { "tool": "run_typed_query", "data": { "impacted_apis": [], "total_impacted": 0 } },
+        { "tool": "run_query", "data": [{ "name": "patients-service", "endpoint": "GET /api/appointments/", "protocol": "http" }] }
+      ]
+    }
+  }
+}

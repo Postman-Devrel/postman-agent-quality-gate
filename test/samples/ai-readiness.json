@@ -1,0 +1,136 @@
+{
+  "source": {
+    "name": "appointments-service",
+    "identifier": "postman/specs/appointments-api/index.yaml",
+    "inputType": "FILE_PATH"
+  },
+  "sourceType": "specification",
+  "complexity": {
+    "rcs": 7,
+    "adjustment": -1,
+    "ecs": 6,
+    "score_0_10": 3,
+    "bucket": "Moderate"
+  },
+  "readiness": {
+    "score_0_100": 70,
+    "bucket": "Good"
+  },
+  "confidence": "high",
+  "docCoverage": {
+    "bucket": "high",
+    "adjustment": -1,
+    "evidence": {
+      "ops_documented_ratio": 1,
+      "params_documented_ratio": 1,
+      "info_description_present": 1,
+      "blended_coverage": 1
+    }
+  },
+  "signals": [
+    {
+      "name": "auth_required",
+      "value": "optional",
+      "bucket": "optional",
+      "points": 1,
+      "source": "spec",
+      "evidence": [
+        "securitySchemes: bearerAuth"
+      ]
+    },
+    {
+      "name": "total_endpoints",
+      "value": 10,
+      "bucket": "6-20",
+      "points": 1,
+      "source": "spec"
+    },
+    {
+      "name": "schema_depth",
+      "value": 2,
+      "bucket": "shallow",
+      "points": 0,
+      "source": "spec"
+    },
+    {
+      "name": "avg_response_size_kb",
+      "value": 0.05,
+      "bucket": "<=5",
+      "points": 0,
+      "source": "examples",
+      "evidence": [
+        "25 documented example(s) sampled"
+      ]
+    },
+    {
+      "name": "error_surface",
+      "value": 5,
+      "bucket": "medium",
+      "points": 1,
+      "source": "spec",
+      "evidence": [
+        "documented responses: 400, 401, 403, 404, 503"
+      ]
+    },
+    {
+      "name": "error_codes_count",
+      "value": 5,
+      "bucket": "4-7",
+      "points": 1,
+      "source": "spec",
+      "evidence": [
+        "documented responses: 400, 401, 403, 404, 503"
+      ]
+    },
+    {
+      "name": "pagination_supported",
+      "value": true,
+      "bucket": "yes",
+      "points": 1,
+      "source": "spec"
+    },
+    {
+      "name": "pagination_pattern",
+      "value": "offset_limit",
+      "bucket": "offset_limit",
+      "points": 1,
+      "source": "spec",
+      "evidence": [
+        "param 'offset'",
+        "param 'limit'"
+      ]
+    },
+    {
+      "name": "parameter_complexity",
+      "value": "medium",
+      "bucket": "medium",
+      "points": 1,
+      "source": "spec"
+    },
+    {
+      "name": "rate_limiting",
+      "value": "unknown",
+      "bucket": "unknown",
+      "points": 0,
+      "source": "unknown"
+    }
+  ],
+  "recommendations": [
+    "Authentication is declared — make sure credential acquisition is also documented (where to obtain keys/tokens, scopes needed) so an agent operator can set up access.",
+    "Large surface area: scope the AI agent to a focused subset of endpoints, or split the spec into smaller domains.",
+    "A broad error surface is documented — good. Make sure each error states whether it is recoverable (retry, fix input, re-auth) so agents can branch on it.",
+    "Many distinct error codes are documented — keep them, and add a short handling hint per code so agents can map each to a strategy without guessing.",
+    "Document the pagination contract: how to request the next page, and how the client knows when it is done.",
+    "Cursor-style pagination is opaque to AI; include explicit `nextCursor` semantics in docs and at least one example showing the pagination roundtrip.",
+    "Reduce parameter count, simplify nested object parameters, or document each parameter's role; AI selects parameters from descriptions.",
+    "Save example responses with their headers (collection) or add `x-ratelimit-*` extensions (spec) so rate limiting can be detected."
+  ],
+  "stats": {
+    "totalEndpoints": 10,
+    "totalFolders": 0,
+    "totalSchemas": 9,
+    "totalExamples": 0,
+    "specVersion": "3.1.0",
+    "unknownSignals": 1
+  }
+}

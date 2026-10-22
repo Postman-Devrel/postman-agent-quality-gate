@@ -1,0 +1,4 @@
+node_modules/
+gate-results/
+*.log
+.DS_Store
