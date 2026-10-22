@@ -15,7 +15,7 @@ Status: first version (0.1.1, not published to npm). Node 22, one runtime depend
 | `ai-readiness` | How well an AI agent can discover, understand and call the API | no |
 | `impact` | Known consumers (Postman Context Graph) of the API, and whether the spec change is breaking for them | yes |
 
-Verdict: a weighted score, a rating A to E, and **blockers** declared per step in the config (a failing `contract-lint` or `contract-tests`, a breaking change for a known consumer). A step that ran with a weakened check (for example lint without login) is `degraded`: at best a warning, score capped, shown in the report. A step that cannot run is `not_available`: it is excluded from the score, never counted as a pass, and it blocks when it is in `required_steps`.
+Verdict: a weighted score, a rating A to E, and **blockers** declared per step in the config (a failing `contract-lint` or `contract-tests`, a breaking change for a known consumer). A step that ran with a weakened check (for example lint without login) is `degraded`: at best a warning, score capped, shown in the report. A step that cannot run is `not_available`: it is excluded from the score, never counted as a pass, and it blocks when it is in `required_steps` (the rating is then E, whatever the score of the steps that ran).
 
 ### What it does not judge
 

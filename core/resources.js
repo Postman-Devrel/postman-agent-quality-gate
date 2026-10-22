@@ -1,7 +1,9 @@
 'use strict';
 // Finds the spec and the collection of the Postman project.
-// Source of truth: .postman/resources.yaml (cloudResources.specs / cloudResources.collections keys, relative
-// to .postman/). The config can override both (paths relative to the project root).
+// Source of truth: .postman/resources.yaml, paths relative to .postman/:
+//   cloudResources.specs / .collections  (map: path -> id, written once the project is bound to a workspace)
+//   localResources.specs / .collections  (list of paths, written by a fresh `postman init`)
+// Per kind, cloud entries win when both exist. The config can override both (paths relative to the project root).
 const fs = require('fs');
 const path = require('path');
 const YAML = require('yaml');
@@ -10,7 +12,13 @@ const { detectSpecType } = require('./spec-type');
 
 const RESOURCES_FILE = path.join('.postman', 'resources.yaml');
 
-/** Keys of cloudResources.<kind> as paths relative to the project root. */
+/** Entries of a resources section (map keys or list items) as paths relative to the project root. */
+function entries(cwd, section) {
+  const raw = Array.isArray(section) ? section : Object.keys(section || {});
+  return raw.filter((k) => typeof k === 'string' && k).map((k) => path.relative(cwd, path.resolve(cwd, '.postman', k)));
+}
+
+/** Paths of <kind> declared in .postman/resources.yaml (cloudResources, else localResources), relative to the project root. */
 function listResources(cwd, kind) {
   const file = path.join(cwd, RESOURCES_FILE);
   if (!fs.existsSync(file)) return [];
@@ -20,8 +28,8 @@ function listResources(cwd, kind) {
   } catch (e) {
     throw new ConfigError([`${RESOURCES_FILE}: not valid YAML (${e.message.split('\n')[0]})`]);
   }
-  const keys = Object.keys((doc && doc.cloudResources && doc.cloudResources[kind]) || {});
-  return keys.map((k) => path.relative(cwd, path.resolve(cwd, '.postman', k)));
+  const cloud = entries(cwd, doc && doc.cloudResources && doc.cloudResources[kind]);
+  return cloud.length ? cloud : entries(cwd, doc && doc.localResources && doc.localResources[kind]);
 }
 
 function pick(cwd, kind, override, label) {

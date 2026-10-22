@@ -11,13 +11,18 @@ postman init            # writes .postman/resources.yaml and postman/skills/, bi
 postman collection new "My API"      # scaffolds postman/collections/My API/
 ```
 
-`postman init` registers the spec under `localResources`, leaves the workspace id empty and creates no collection. The gate reads `cloudResources` only, so tell it where the spec and the collection are in the config file (step 2):
+`postman init` registers the spec under `localResources` and leaves the workspace id empty; the gate resolves it from there (paths relative to `.postman/`, like `cloudResources`). It creates no collection, and `postman collection new` does not register one, so add it under `localResources` yourself:
 
 ```yaml
-# quality-gate.yml
-spec: openapi/openapi.yaml
-collection: postman/collections/My API
+# .postman/resources.yaml
+localResources:
+  specs:
+    - ../openapi/openapi.yaml
+  collections:
+    - ../postman/collections/My API
 ```
+
+(or set `collection: postman/collections/My API` in `quality-gate.yml`, step 2). When both `cloudResources` and `localResources` list a kind, `cloudResources` wins.
 
 Add requests (one `*.request.yaml` per request, see the `collection-schema-v3` skill (in `postman/skills/`) that `init` installs, or `fixtures/green/` in the gate repository for a complete example) and commit `postman/` with the skills `init` wrote: the `skills-check` step needs them.
 
@@ -33,7 +38,7 @@ cloudResources:
     ../postman/collections/My API: <collection id>
 ```
 
-Paths are relative to `.postman/`. A spec symlinked to another file works. If several specs or collections are listed, choose one in the config file (the gate stops with a configuration error otherwise). If neither `cloudResources` nor the config names them, every step that reads them is `not_available` and the required steps block the verdict.
+Paths are relative to `.postman/`. A spec symlinked to another file works. If several specs or collections are listed, choose one in the config file (the gate stops with a configuration error otherwise). If neither `cloudResources`, `localResources` nor the config names them, every step that reads them is `not_available`, the required steps block the verdict and the rating is E.
 
 ### The collection
 
