@@ -1,6 +1,6 @@
 {
   "name": "postman-agent-quality-gate",
-  "version": "0.1.1",
+  "version": "0.2.0",
   "description": "Works with the postman-agent-quality-gate CI gate: a gate-verdict agent that reads the CI result and writes a fixes brief, a gate-loop skill for the fix loop, and a live pane showing the gate for every branch.",
   "types": "./types/index.d.ts",
   "author": { "name": "Postman DevRel" },

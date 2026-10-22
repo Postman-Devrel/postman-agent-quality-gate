@@ -2,7 +2,7 @@
 
 A quality gate for API projects that depends **only on the Postman project** (spec, collection, workspace): never on the application code or its language. It scores the contract, checks it against the consumers' collection, and flags breaking changes for known consumers. It runs in CI, outside the coding agent, so an agent cannot skip it.
 
-Status: first version (0.1.1, not published to npm). Node 22, one runtime dependency (`yaml`), Postman CLI 1.76.0.
+Status: 0.2.0 (not published to npm). Node 22, one runtime dependency (`yaml`), Postman CLI 1.76.0.
 
 ## What it judges
 
