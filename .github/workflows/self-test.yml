@@ -57,3 +57,17 @@ jobs:
         with:
           name: fixture-${{ matrix.fixture }}
           path: gate-results/report.*
+
+  # A consumer with no code (examples/spec-only: spec + collection + .postman/resources.yaml), judged through the
+  # real reusable workflow, called locally. Its action reference inside gate.yml is the published @v1 tag.
+  reusable-workflow:
+    needs: unit
+    uses: ./.github/workflows/gate.yml
+    with:
+      working-directory: examples/spec-only
+    secrets:
+      POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+    permissions:
+      contents: read
+      pull-requests: write
+      actions: read

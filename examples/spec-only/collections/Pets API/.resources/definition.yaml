@@ -1,0 +1,4 @@
+$kind: collection
+description: Consumer expectations for the Pets API.
+variables:
+  baseUrl: http://localhost:8080

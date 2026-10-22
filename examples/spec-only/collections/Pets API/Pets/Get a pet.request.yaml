@@ -1,0 +1,16 @@
+$kind: http-request
+description: Gets a pet.
+url: '{{baseUrl}}/pets/:petId'
+method: GET
+pathVariables:
+  - key: petId
+    value: '1'
+order: 3000
+scripts:
+  - type: afterResponse
+    language: text/javascript
+    code: |
+      pm.test("200 and a pet with id, name and status", () => {
+        pm.response.to.have.status(200);
+        pm.expect(pm.response.json()).to.include.all.keys("id", "name", "status");
+      });
