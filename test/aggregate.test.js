@@ -79,6 +79,25 @@ test('required_steps: a required step not_available is a blocker, an optional on
   assert.equal(run({ 'contract-tests': na('contract-tests') }, { required_steps: [], blockers: {} }).report.passed, true);
 });
 
+test('a required step not_available caps the rating at E and the headline says why', () => {
+  const only = { 'skills-check': step('skills-check', 'pass', 100) };
+  const r = aggregate(validateConfig({}), only, {});
+  assert.equal(r.report.score, 100);
+  assert.equal(r.report.rating, 'E');
+  assert.equal(r.report.passed, false);
+  assert.match(r.report.headline, /rating E, required steps contract-lint, contract-tests did not run \(100\/100 on the steps that ran\)/);
+  assert.match(r.markdown, /## ❌ Postman agent quality gate: rating E, required steps contract-lint, contract-tests did not run/);
+  assert.doesNotMatch(r.markdown, /rating A/);
+  const one = run({ 'contract-tests': na('contract-tests') });
+  assert.equal(one.report.rating, 'E');
+  assert.match(one.report.headline, /required step contract-tests did not run/);
+  // an optional step not_available leaves the rating alone
+  const opt = run({ impact: na('impact') });
+  assert.equal(opt.report.rating, 'A');
+  assert.equal(opt.report.headline, null);
+  assert.match(opt.markdown, /rating A \(100\/100\)/);
+});
+
 test('not_available steps are excluded and the weights re-normalized', () => {
   const { report } = run({ impact: na('impact'), 'ai-readiness': step('ai-readiness', 'fail', 0) });
   // weights left: 10 + 25 + 20 + 5 + 20 (ai-readiness, score 0) = 80; the ai-readiness 20 contributes 0

@@ -25,7 +25,9 @@ function aggregate(cfg, results, meta = {}) {
   const counted = steps.filter((s) => s.status !== 'not_available' && typeof s.score === 'number' && (cfg.weights[s.step] || 0) > 0);
   const totalWeight = counted.reduce((sum, s) => sum + cfg.weights[s.step], 0);
   const score = totalWeight ? Math.round(counted.reduce((sum, s) => sum + s.score * cfg.weights[s.step], 0) / totalWeight) : 0;
-  const rating = totalWeight ? ratingFor(cfg, score) : 'E';
+  // A required step that did not run caps the rating at E: a high score on the steps that did run must not look good.
+  const missingRequired = cfg.required_steps.filter((id) => steps.some((x) => x.step === id && x.status === 'not_available'));
+  const rating = totalWeight && !missingRequired.length ? ratingFor(cfg, score) : 'E';
 
   // Blockers: declared per step in the config, plus required steps that are not available.
   const blockers = [];
@@ -66,6 +68,9 @@ function aggregate(cfg, results, meta = {}) {
     passed,
     score,
     rating,
+    headline: missingRequired.length
+      ? `rating E, required step${missingRequired.length > 1 ? 's' : ''} ${missingRequired.join(', ')} did not run (${score}/100 on the steps that ran)`
+      : null,
     blockers,
     feedback,
     steps: steps.map(({ step, status, score: sc, degraded }) => ({ step, status, score: sc, ...(degraded ? { degraded } : {}) })),
@@ -74,14 +79,14 @@ function aggregate(cfg, results, meta = {}) {
 }
 
 function renderMarkdown(cfg, report, steps) {
-  const { passed, rating, score, blockers, feedback } = report;
+  const { passed, rating, score, blockers, feedback, headline } = report;
   const rows = steps.map((s) => {
     const na = s.status === 'not_available';
     return `| ${ICON[s.status] || '⚪'} ${s.step} | ${s.status} | ${na ? '–' : s.score} | ${na ? '–' : cfg.weights[s.step]} | ${cell(s.summary)} | ${s.command ? '`' + cell(s.command) + '`' : ''} |`;
   });
   const lines = [
     REPORT_MARKER,
-    `## ${passed ? '✅' : '❌'} Postman agent quality gate: rating ${rating} (${score}/100)`,
+    `## ${passed ? '✅' : '❌'} Postman agent quality gate: ${headline || `rating ${rating} (${score}/100)`}`,
     '',
     `**${passed ? 'PASSED' : 'FAILED'}**. Required: rating ${cfg.pass_rating} or better and no blocker.`,
     '',

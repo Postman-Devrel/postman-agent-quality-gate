@@ -40,12 +40,12 @@ function cliVersion(ctx) {
 /** Why a step cannot run in this context, or null when it can. */
 function blockerFor(step, ctx, version) {
   if (step.needsSpec !== false) {
-    if (!ctx.spec) return 'no spec found: declare one in .postman/resources.yaml (cloudResources.specs) or set "spec" in the config file';
+    if (!ctx.spec) return 'no spec found: declare one in .postman/resources.yaml (cloudResources.specs or localResources.specs) or set "spec" in the config file';
     if (!step.supports.includes('*') && !step.supports.includes(ctx.spec.type)) {
       return `spec type "${ctx.spec.type}" is not supported by ${step.id} (supports: ${step.supports.join(', ')})`;
     }
   }
-  if (step.needsCollection && !ctx.collection) return 'no collection found: declare one in .postman/resources.yaml (cloudResources.collections) or set "collection" in the config file';
+  if (step.needsCollection && !ctx.collection) return 'no collection found: declare one in .postman/resources.yaml (cloudResources.collections or localResources.collections) or set "collection" in the config file';
   if (step.needsCli && !version) return `postman CLI not installed (expected ${POSTMAN_CLI_VERSION})`;
   return null;
 }
