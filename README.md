@@ -2,7 +2,7 @@
 
 A quality gate for API projects that depends **only on the Postman project** (spec, collection, workspace): never on the application code or its language. It scores the contract, checks it against the consumers' collection, and flags breaking changes for known consumers. It runs in CI, outside the coding agent, so an agent cannot skip it.
 
-Status: 0.2.0 (not published to npm). Node 22, one runtime dependency (`yaml`), Postman CLI 1.76.0.
+Status: 0.3.0 (not published to npm). Node 22, one runtime dependency (`yaml`), Postman CLI 1.76.0.
 
 ## What it judges
 
@@ -33,11 +33,13 @@ npx github:Postman-Devrel/postman-agent-quality-gate#v1 aggregate           # ve
 
 Options: `--config <file>`, `--results-dir <dir>` (default `gate-results/`), `--no-exit-code`. Exit codes: 0 passed, 1 gate failed, 2 configuration error. The runner calls the `postman` CLI, which must be installed (pinned version: `postmanCli` in `package.json`).
 
+Config reference (`quality-gate.yml`, all optional): `spec`, `collection`, `impact.api`, `steps`, `weights`, `rating`, `pass_rating`, `ai_readiness`, `blockers`, `required_steps`, and `contract-lint.exceptions`: a list of `{ path, issue, reason }` that accepts one lint finding on purpose (exact `path`, case-insensitive `issue` substring, mandatory `reason`). Accepted findings leave the score and the blockers but stay visible in the report. They are human decisions: agents never add them. Details in [docs/adoption.md](docs/adoption.md).
+
 Inputs are discovered from `.postman/resources.yaml` (`cloudResources.specs` and `cloudResources.collections`). Nothing to configure for a standard Postman project. See [docs/adoption.md](docs/adoption.md) for the config file, the GitHub workflow and the secrets, and [docs/architecture.md](docs/architecture.md) for the design.
 
 ## Outputs
 
-`gate-results/<step>.json` per step, then `report.json` (`schema_version`, `gate_version`, `cli_version`, `spec`, `collection`, `passed`, `score`, `rating`, `blockers`, `feedback[]`, `steps[]`) and `report.md` (posted as a PR comment, marker `<!-- postman-agent-quality-gate -->`).
+`gate-results/<step>.json` per step, then `report.json` (`schema_version`, `gate_version`, `cli_version`, `spec`, `collection`, `passed`, `score`, `rating`, `blockers`, `feedback[]`, `steps[]` with `accepted_exceptions` when lint exceptions are configured) and `report.md` (posted as a PR comment, marker `<!-- postman-agent-quality-gate -->`).
 
 ## Repository
 

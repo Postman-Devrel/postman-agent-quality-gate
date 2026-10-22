@@ -35,4 +35,6 @@ DO NOT: <what must not be done to fix it, e.g. rename or remove a field consumer
 NEXT: "ready to merge" if PASSED with no gap, "passed with gaps: <gaps>" if PASSED with gaps, otherwise "apply fixes 1..N, push to the same branch, then call gate-verdict with the new SHA".
 ```
 
+Lint exceptions (`contract-lint.exceptions` in the gate config) are human decisions. Never suggest adding one as a fix, even when a finding looks intended. If you think a finding deserves an exception, put a line under FIXES such as `[contract-lint] FLAG FOR A HUMAN: <finding> may warrant an accepted exception; the coding agent must not add it`. Report accepted exceptions from the run (`steps[].accepted_exceptions`, the "Accepted exceptions" section of `report.md`) in the verdict as `ACCEPTED: <n> lint exception(s) (human decisions): <findings>`, and a stale-exception warning as a fix for a human to remove it. A PASSED verdict with accepted exceptions is said so, never a plain pass.
+
 Be specific: name the file and the field when the report gives it. Do not invent findings the report does not contain. If the gate passed with warnings, list the warnings as optional improvements. The brief addresses "the coding agent" in general: it names no tool, language or project layout, only the findings and fixes the report contains.

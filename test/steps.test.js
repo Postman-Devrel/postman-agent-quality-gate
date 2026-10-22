@@ -301,3 +301,49 @@ test('impact.resolveBaseRef: GATE_BASE_REF, then the remote default branch', () 
   const nothing = fakeExec(() => ({ status: 1 }));
   assert.equal(impact.resolveBaseRef({ exec: nothing, cwd: '.', env: {} }), 'HEAD');
 });
+
+// ---- contract-lint exceptions --------------------------------------------------------------------------------
+const TRAILING = { violations: [
+  { file: 'a.yaml', 'line number': '10', path: 'paths./api/appointments/', severity: 'ERROR', issue: 'There should be no trailing slashes on paths', 'issue type': 'Governance' },
+  { file: 'a.yaml', 'line number': '20', path: 'paths./api/other/', severity: 'ERROR', issue: 'There should be no trailing slashes on paths', 'issue type': 'Governance' },
+] };
+const EX = { path: 'paths./api/appointments/', issue: 'TRAILING SLASH', reason: 'Real route' };
+
+test('contract-lint exceptions: exact path and case-insensitive issue substring; partial acceptance still fails', () => {
+  const r = lint.parseLint(JSON.stringify(TRAILING), 's.yaml', 'c', [EX]);
+  assert.equal(r.status, 'fail');
+  assert.equal(r.score, 60);
+  assert.equal(r.details.length, 1);
+  assert.equal(r.details[0].path, 'paths./api/other/');
+  assert.equal(r.accepted.length, 1);
+  assert.equal(r.accepted[0].reason, 'Real route');
+  assert.deepEqual(r.exceptions, [{ ...EX, matched: 1 }]);
+  assert.match(r.summary, /1 accepted by exception/);
+  // path is exact, not a prefix; a different issue text does not match
+  const none = lint.parseLint(JSON.stringify(TRAILING), 's', 'c', [{ ...EX, path: 'paths./api/appointments' }, { ...EX, issue: 'camel case' }]);
+  assert.equal(none.accepted.length, 0);
+  assert.equal(none.score, 20);
+});
+
+test('contract-lint exceptions: every error accepted -> pass with the accepted list', () => {
+  const one = { violations: [TRAILING.violations[0]] };
+  const r = lint.parseLint(JSON.stringify(one), 's', 'c', [EX]);
+  assert.deepEqual([r.status, r.score], ['pass', 100]);
+  assert.equal(r.accepted.length, 1);
+  assert.equal(r.details.length, 0);
+});
+
+test('contract-lint exceptions: a stale exception makes the step warn and asks to remove it', () => {
+  const r = lint.parseLint(sample('lint-clean.json'), 's', 'c', [EX]);
+  assert.equal(r.status, 'warn');
+  assert.deepEqual(r.exceptions, [{ ...EX, matched: 0 }]);
+  assert.match(r.details[0].hint, /Remove the stale exception/);
+  // not judged on a degraded (syntax only) run
+  assert.equal(lint.parseLint(sample('lint-clean.json'), 's', 'c', [EX], { checkStale: false }).status, 'pass');
+});
+
+test('contract-lint exceptions: run() reads them from ctx.config', () => {
+  const ctx = { cwd: '.', env: {}, spec: { path: 's.yaml' }, config: { 'contract-lint': { exceptions: [EX] } },
+    exec: fakeExec(() => ({ stdout: JSON.stringify({ violations: [TRAILING.violations[0]] }), status: 1 })) };
+  assert.equal(lint.run(ctx).status, 'pass');
+});

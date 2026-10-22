@@ -150,3 +150,23 @@ test('degraded required step still counts as run (no blocker); its syntax error 
   assert.equal(bad.report.passed, false);
   assert.match(bad.report.blockers[0], /contract-lint failed/);
 });
+
+test('accepted lint exceptions: honest headline, report.json count, report.md section', () => {
+  const accepted = [{ severity: 'ERROR', path: 'paths./api/appointments/', issue: 'There should be no trailing slashes on paths', reason: 'Real route | coordinated migration' }];
+  const lintStep = { ...step('contract-lint', 'pass', 100), accepted };
+  const { report, markdown } = run({ 'contract-lint': lintStep });
+  assert.equal(report.passed, true);
+  assert.match(report.headline, /^PASSED with 1 accepted lint exception /);
+  assert.equal(report.steps.find((s) => s.step === 'contract-lint').accepted_exceptions, 1);
+  assert.equal(report.steps.find((s) => s.step === 'coverage').accepted_exceptions, undefined);
+  assert.match(markdown, /### Accepted exceptions \(human decisions\)/);
+  assert.match(markdown, /paths\.\/api\/appointments\//);
+  assert.match(markdown, /Real route \\\| coordinated migration/);
+  assert.match(markdown, /PASSED with 1 accepted lint exception/);
+});
+
+test('no accepted exception: no headline and no section', () => {
+  const { report, markdown } = run();
+  assert.equal(report.headline, null);
+  assert.doesNotMatch(markdown, /Accepted exceptions/);
+});

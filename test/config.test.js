@@ -52,3 +52,20 @@ test('loadConfig: optional default file, explicit file must exist, bad YAML is r
   const bad = project({ 'quality-gate.yml': 'a: [1,' });
   assert.throws(() => loadConfig(bad), /not valid YAML/);
 });
+
+test('contract-lint.exceptions: valid entries are kept, default is empty', () => {
+  assert.deepEqual(validateConfig({})['contract-lint'], { exceptions: [] });
+  const ex = { path: 'paths./a/', issue: 'trailing slash', reason: 'Real route' };
+  assert.deepEqual(validateConfig({ 'contract-lint': { exceptions: [ex] } })['contract-lint'].exceptions, [ex]);
+});
+
+test('contract-lint.exceptions: path, issue and a non-empty reason are required; unknown keys rejected', () => {
+  const errs = (cfg) => { try { validateConfig(cfg); return []; } catch (e) { return e.errors; } };
+  assert.equal(errs({ 'contract-lint': { exceptions: [{ path: 'p', issue: 'i' }] } }).length, 1);
+  assert.match(errs({ 'contract-lint': { exceptions: [{ path: 'p', issue: 'i', reason: '  ' }] } })[0], /reason.*required/);
+  assert.equal(errs({ 'contract-lint': { exceptions: [{ issue: 'i', reason: 'r' }] } }).length, 1);
+  assert.match(errs({ 'contract-lint': { exceptions: [{ path: 'p', issue: 'i', reason: 'r', why: 'x' }] } })[0], /unknown key/);
+  assert.match(errs({ 'contract-lint': { exceptions: 'nope' } })[0], /must be a list/);
+  assert.match(errs({ 'contract-lint': { rules: [] } })[0], /unknown key "contract-lint.rules"/);
+  assert.match(errs({ 'contract-lint': { exceptions: ['x'] } })[0], /must be a mapping/);
+});

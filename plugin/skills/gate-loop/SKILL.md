@@ -21,6 +21,7 @@ A SKIPPED verdict (no relevant file changed) is reported as skipped, not as a pa
 - Never edit the gate, its workflow or its configuration to get a better verdict. If the gate itself looks wrong, say so and stop.
 - Never merge, force-push or push to the default branch unless the user asks for it.
 - A `not_available` step (or a degraded one) is a gap, not a pass: name it in the final report.
+- Never add, edit or remove a lint exception (`contract-lint.exceptions` in the gate config), and never suggest one as a fix: accepting a finding is a human decision. If an exception looks justified, flag it for a human in the report and stop that fix. A PASSED with accepted exceptions is reported as such.
 - Never rename or remove a field, path or response that consumers use, and never make an existing request field required: add next to it, or version the API.
 - Never run requests against a real server: the collection's base URL stays a local one.
 - After 3 rounds without PASSED, stop and report what is left; do not keep looping.
