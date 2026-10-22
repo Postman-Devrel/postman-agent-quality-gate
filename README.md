@@ -35,6 +35,8 @@ Options: `--config <file>`, `--results-dir <dir>` (default `gate-results/`), `--
 
 Config reference (`quality-gate.yml`, all optional): `spec`, `collection`, `impact.api`, `steps`, `weights`, `rating`, `pass_rating`, `ai_readiness`, `blockers`, `required_steps`, and `contract-lint.exceptions`: a list of `{ path, issue, reason }` that accepts one lint finding on purpose (exact `path`, case-insensitive `issue` substring, mandatory `reason`). Accepted findings leave the score and the blockers but stay visible in the report. They are human decisions: agents never add them. Details in [docs/adoption.md](docs/adoption.md).
 
+Reference consumer: [`healthcare-org-app/healthcare-appointments`](https://github.com/healthcare-org-app/healthcare-appointments) (a real Python/Flask service) runs this gate in CI and shows a real accepted lint exception. The gate was extracted from the earlier Java prototype `Postman-Devrel/agent-quality-gate`, now deprecated.
+
 Inputs are discovered from `.postman/resources.yaml` (`cloudResources.specs` and `cloudResources.collections`). Nothing to configure for a standard Postman project. See [docs/adoption.md](docs/adoption.md) for the config file, the GitHub workflow and the secrets, and [docs/architecture.md](docs/architecture.md) for the design.
 
 ## Outputs

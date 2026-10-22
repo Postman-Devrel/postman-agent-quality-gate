@@ -76,6 +76,7 @@ An unknown key, step id or invalid value is reported with the file and key; the 
 
 Sometimes a lint finding is correct and still intended (for example a trailing slash that is the real route a consumer calls). A person can accept it in `contract-lint.exceptions`. Each entry needs `path` (exact match on the violation's `path` in `postman spec lint -o json`), `issue` (a case-insensitive substring of its `issue` text) and a non-empty `reason`; anything else is a configuration error (exit 2).
 
+- Real example: `healthcare-org-app/healthcare-appointments` accepts one finding (the trailing slash of `/api/appointments/`, the route its consumers call); its gate passes with rating A and the report says "PASSED with 1 accepted lint exception".
 - A matched finding leaves the score and the blockers, but stays in the report: `report.md` has an "Accepted exceptions (human decisions)" table (finding, path, reason), `report.json` has `steps[].accepted_exceptions` (count), and the headline says so (for example "PASSED with 1 accepted lint exception").
 - An exception that matches nothing is stale: contract-lint is at best `warn` and the feedback asks to remove it. (Not checked on a degraded run, where governance rules were skipped.)
 - Exceptions apply to contract-lint only. Warnings can be accepted too.
@@ -122,7 +123,10 @@ npx github:Postman-Devrel/postman-agent-quality-gate#v1 run
 
 Needs Node 22+ and the `postman` CLI (1.76.0) on the PATH; `postman login` for the full verdict. Nothing else: no build, no running server. Run it from the folder that holds `.postman/`. Results land in `gate-results/` (add it to `.gitignore`).
 
-Examples of projects that adopt it: `examples/spec-only/` (no code at all, run in CI through `gate.yml` by `self-test`).
+Examples of projects that adopt it:
+
+- [`healthcare-org-app/healthcare-appointments`](https://github.com/healthcare-org-app/healthcare-appointments): the reference consumer, a real Python/Flask service known by the Postman Context Graph. It calls `gate.yml@v1` in CI and carries one accepted lint exception (see section on lint exceptions above).
+- `examples/spec-only/`: no code at all, run in CI through `gate.yml` by `self-test`.
 
 ## Not covered
 
