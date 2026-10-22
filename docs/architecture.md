@@ -72,6 +72,17 @@ Jobs of `gate.yml`: `changes` (relevant files: `.postman/`, spec and collection,
 
 Third-party actions are pinned by commit SHA.
 
+## Lint exceptions
+
+A project can accept a specific contract-lint finding with `contract-lint.exceptions` (`path`, `issue`, `reason`). The design choices:
+
+- **Explicit.** An exception names one finding (exact path, issue text), never a rule or a severity, so it cannot hide new problems.
+- **Visible.** The finding is removed from the score and the blockers only; it stays in the step result (`accepted`, with the reason), in `report.json` (`accepted_exceptions`), in `report.md` (a dedicated table) and in the headline ("PASSED with 1 accepted lint exception"). A green gate never looks cleaner than it is.
+- **Reasoned.** `reason` is mandatory; the decision is a reviewed change to a versioned file.
+- **Self-cleaning.** An exception that matches nothing is stale and downgrades the step to `warn` until removed.
+- **Human only.** The gate-verdict agent and the gate-loop never suggest an exception as a fix and agents never write one: they flag it for a human.
+- **contract-lint only** in this version: the other steps measure behaviour (tests, impact) where an accepted failure would be a silent hole. The CLI output has no rule id (`issue type` is only Syntax or Governance), hence the issue text as the matching handle.
+
 ## Out of scope in v1
 
 External steps, other spec formats than OpenAPI 3, the Claude Code plugin (`plugin/`, `.claude-plugin/marketplace.json` will live in this repository later), a LICENSE (owner decision), npm publication.

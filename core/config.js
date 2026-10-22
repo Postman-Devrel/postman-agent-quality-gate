@@ -5,6 +5,7 @@ const path = require('path');
 const YAML = require('yaml');
 const { STEP_IDS, LETTERS, DEFAULT_CONFIG_FILE } = require('./constants');
 
+const EXCEPTION_KEYS = ['path', 'issue', 'reason'];
 const BLOCKER_RULES = ['on_fail', 'on_warn', 'on_breaking'];
 
 const DEFAULTS = Object.freeze({
@@ -18,6 +19,7 @@ const DEFAULTS = Object.freeze({
   pass_rating: 'B',
   blockers: { 'contract-lint': 'on_fail', 'contract-tests': 'on_fail', impact: 'on_breaking' },
   required_steps: ['contract-lint', 'contract-tests'],
+  'contract-lint': { exceptions: [] },
 });
 
 class ConfigError extends Error {
@@ -126,6 +128,29 @@ function validateConfig(raw, source = DEFAULT_CONFIG_FILE) {
       const bad = raw.required_steps.filter((s) => !STEP_IDS.includes(s));
       if (bad.length) err(`unknown step(s) in "required_steps": ${bad.join(', ')}`);
       else cfg.required_steps = [...new Set(raw.required_steps)];
+    }
+  }
+
+  if (raw['contract-lint'] !== undefined && raw['contract-lint'] !== null) {
+    const cl = raw['contract-lint'];
+    if (!isObj(cl)) err('"contract-lint" must be a mapping (contract-lint.exceptions)');
+    else {
+      for (const k of Object.keys(cl)) if (k !== 'exceptions') err(`unknown key "contract-lint.${k}" (use exceptions)`);
+      if (cl.exceptions !== undefined && cl.exceptions !== null) {
+        if (!Array.isArray(cl.exceptions)) err('"contract-lint.exceptions" must be a list of { path, issue, reason }');
+        else {
+          cl.exceptions.forEach((ex, i) => {
+            const at = `contract-lint.exceptions[${i}]`;
+            if (!isObj(ex)) return err(`"${at}" must be a mapping with path, issue and reason`);
+            for (const k of Object.keys(ex)) if (!EXCEPTION_KEYS.includes(k)) err(`unknown key "${at}.${k}" (use ${EXCEPTION_KEYS.join(', ')})`);
+            const bad = EXCEPTION_KEYS.filter((k) => typeof ex[k] !== 'string' || !ex[k].trim());
+            for (const k of bad) err(`"${at}.${k}" is required and must be a non-empty string${k === 'reason' ? ' (an exception is a human decision: say why)' : ''}`);
+            if (!bad.length && !Object.keys(ex).some((k) => !EXCEPTION_KEYS.includes(k))) {
+              cfg['contract-lint'].exceptions.push({ path: ex.path.trim(), issue: ex.issue.trim(), reason: ex.reason.trim() });
+            }
+          });
+        }
+      }
     }
   }
 

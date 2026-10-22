@@ -59,6 +59,8 @@ function aggregate(cfg, results, meta = {}) {
     feedback.push({ step: s.step, status: s.status, finding: `${s.step} ran degraded: ${s.degraded}`, fix: 'Run the gate with the full capability (for example set POSTMAN_API_KEY) so the skipped check runs.' });
   }
 
+  const acceptedCount = steps.reduce((n, s) => n + (Array.isArray(s.accepted) ? s.accepted.length : 0), 0);
+  const acceptedNote = `${acceptedCount} accepted lint exception${acceptedCount > 1 ? 's' : ''}`;
   const report = {
     schema_version: SCHEMA_VERSION,
     gate_version: GATE_VERSION,
@@ -70,10 +72,18 @@ function aggregate(cfg, results, meta = {}) {
     rating,
     headline: missingRequired.length
       ? `rating E, required step${missingRequired.length > 1 ? 's' : ''} ${missingRequired.join(', ')} did not run (${score}/100 on the steps that ran)`
-      : null,
+      : acceptedCount
+        ? (passed ? `PASSED with ${acceptedNote} (rating ${rating}, ${score}/100)` : `rating ${rating} (${score}/100), ${acceptedNote}`)
+        : null,
     blockers,
     feedback,
-    steps: steps.map(({ step, status, score: sc, degraded }) => ({ step, status, score: sc, ...(degraded ? { degraded } : {}) })),
+    steps: steps.map(({ step, status, score: sc, degraded, accepted }) => ({
+      step,
+      status,
+      score: sc,
+      ...(degraded ? { degraded } : {}),
+      ...(Array.isArray(accepted) ? { accepted_exceptions: accepted.length } : {}),
+    })),
   };
   return { report, markdown: renderMarkdown(cfg, report, steps) };
 }
@@ -105,6 +115,19 @@ function renderMarkdown(cfg, report, steps) {
   const degraded = steps.filter((s) => s.degraded);
   if (degraded.length) {
     lines.push('### Degraded (the check ran weakened: at best a warning, score capped, never a full pass)', '', ...degraded.map((s) => `- 🟠 **${s.step}**: ${s.degraded}`), '');
+  }
+  const acceptedRows = steps.flatMap((s) => (Array.isArray(s.accepted) ? s.accepted : []).map((a) => ({ step: s.step, ...a })));
+  if (acceptedRows.length) {
+    lines.push(
+      '### Accepted exceptions (human decisions)',
+      '',
+      'These findings are removed from the score and the blockers because a person accepted them in the gate config. They are still real findings.',
+      '',
+      '| Step | Finding | Path | Reason |',
+      '|------|---------|------|--------|',
+      ...acceptedRows.map((a) => `| ${a.step} | ${cell(`${a.severity}: ${a.issue ?? ''}`)} | \`${cell(a.path)}\` | ${cell(a.reason)} |`),
+      '',
+    );
   }
   if (feedback.length) {
     lines.push('### What to fix (for the coding agent)', '', ...feedback.map((f, i) => `${i + 1}. **${f.step}** (${f.status}): ${cell(f.finding)}  \n   Fix: ${cell(f.fix)}`), '');

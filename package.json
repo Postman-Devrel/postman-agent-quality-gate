@@ -1,6 +1,6 @@
 {
   "name": "postman-agent-quality-gate",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "A quality gate for API projects that depends only on the Postman project (spec, collection, workspace).",
   "private": true,
   "license": "Apache-2.0",

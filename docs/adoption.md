@@ -63,9 +63,23 @@ blockers:                            # step: on_fail | on_warn | on_breaking
   contract-tests: on_fail
   impact: on_breaking
 required_steps: [contract-lint, contract-tests]   # not_available => blocker
+contract-lint:
+  exceptions:                        # accepted lint findings: a traced human decision, see below
+    - path: "paths./api/appointments/"     # exact match on the violation's path
+      issue: "trailing slash"              # case-insensitive substring of the violation's issue text
+      reason: "Real route of appointments-service; patients-service calls it. Removing it is a coordinated migration."
 ```
 
 An unknown key, step id or invalid value is reported with the file and key; the runner exits 2.
+
+### Accepting a contract-lint finding on purpose
+
+Sometimes a lint finding is correct and still intended (for example a trailing slash that is the real route a consumer calls). A person can accept it in `contract-lint.exceptions`. Each entry needs `path` (exact match on the violation's `path` in `postman spec lint -o json`), `issue` (a case-insensitive substring of its `issue` text) and a non-empty `reason`; anything else is a configuration error (exit 2).
+
+- A matched finding leaves the score and the blockers, but stays in the report: `report.md` has an "Accepted exceptions (human decisions)" table (finding, path, reason), `report.json` has `steps[].accepted_exceptions` (count), and the headline says so (for example "PASSED with 1 accepted lint exception").
+- An exception that matches nothing is stale: contract-lint is at best `warn` and the feedback asks to remove it. (Not checked on a degraded run, where governance rules were skipped.)
+- Exceptions apply to contract-lint only. Warnings can be accepted too.
+- **Agents never add exceptions.** Not the coding agent, not the gate-verdict agent, not the gate-loop. It is a human decision; an agent that thinks one is justified flags it for a human and does not edit the config.
 
 ## 3. Secrets and environment
 
