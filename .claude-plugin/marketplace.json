@@ -6,7 +6,7 @@
       "name": "postman-agent-quality-gate",
       "source": "./plugin",
       "license": "Apache-2.0",
-      "description": "Gate verdict agent, gate loop skill and a live quality gate pane for Claude Code."
+      "description": "Gate verdict agent and gate loop skill for Claude Code."
     }
   ]
 }

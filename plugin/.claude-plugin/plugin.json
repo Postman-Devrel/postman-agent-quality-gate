@@ -1,24 +1,7 @@
 {
   "name": "postman-agent-quality-gate",
   "version": "0.3.0",
-  "description": "Works with the postman-agent-quality-gate CI gate: a gate-verdict agent that reads the CI result and writes a fixes brief, a gate-loop skill for the fix loop, and a live pane showing the gate for every branch.",
-  "types": "./types/index.d.ts",
+  "description": "Works with the postman-agent-quality-gate CI gate: a gate-verdict agent that reads the CI result and writes a fixes brief, and a gate-loop skill for the fix loop.",
   "author": { "name": "Postman DevRel" },
-  "license": "Apache-2.0",
-  "userConfig": {
-    "workflow": {
-      "type": "string",
-      "title": "Gate workflow name",
-      "description": "Name of the GitHub Actions workflow that runs the gate in your repository.",
-      "default": "quality-gate",
-      "required": false
-    },
-    "resultsDir": {
-      "type": "string",
-      "title": "Gate results directory",
-      "description": "Directory the gate runner writes to; CI reports are cached under <dir>/ci/. Add it to .gitignore.",
-      "default": "gate-results",
-      "required": false
-    }
-  }
+  "license": "Apache-2.0"
 }
