@@ -97,4 +97,4 @@ function riskText(risk) {
   return risk.consumers ? `breaking change for ${risk.consumers} consumer${risk.consumers > 1 ? 's' : ''}` : 'breaking change, no known consumer';
 }
 
-module.exports = { QUALITY_STEPS, STABLE_POINTS, indexFromScores, scoresOf, computeDelta, changeRisk, configHash, ratchet, deltaText, riskText };
+module.exports = { QUALITY_STEPS, STABLE_POINTS, indexFromScores, scoresOf, computeDelta, changeRisk, configHash, ratchet, deltaText, riskText, signed };

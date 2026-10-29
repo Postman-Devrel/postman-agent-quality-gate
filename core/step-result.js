@@ -3,6 +3,7 @@
 // status: pass | warn | fail | not_available. score: 0-100, null when not_available.
 const { RUNNER_COMMAND, DEGRADED_SCORE_CAP } = require('./constants');
 
+const plural = (n, word, many = `${word}s`) => `${n} ${n === 1 ? word : many}`;
 const result = (step, status, score, summary, details = [], command = '') => ({ step, status, score, summary, details, command });
 const notAvailable = (step, reason, command = '') => result(step, 'not_available', null, `NOT_AVAILABLE: ${reason}`, [], command);
 
@@ -21,4 +22,4 @@ function applyDegraded(res) {
 /** The command that re-runs a step, cited in hints. */
 const rerun = (step) => `${RUNNER_COMMAND} run ${step}`;
 
-module.exports = { result, notAvailable, rerun, applyDegraded };
+module.exports = { plural, result, notAvailable, rerun, applyDegraded };

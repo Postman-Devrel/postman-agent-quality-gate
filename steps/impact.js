@@ -9,7 +9,7 @@
 // structural heuristic on the diff, not a Context Graph verdict.
 const fs = require('fs');
 const path = require('path');
-const { result, notAvailable } = require('../core/step-result');
+const { plural, result, notAvailable } = require('../core/step-result');
 const openapiDiff = require('./adapters/openapi/contract-diff');
 
 const id = 'impact';
@@ -99,10 +99,10 @@ function evaluate({ api, consumers, changed, changes, command }) {
     ...changes.map((c) => ({ check: 'breaking-change', result: c.change, hint: c.hint })),
   ];
   const names = consumers.map((c) => c.name).join(', ');
-  if (breaking && count > 0) return result(id, 'fail', 0, `Breaking contract change (${changes[0].change}): ${count} consumer(s) of ${api} affected (${names})`, details, command);
+  if (breaking && count > 0) return result(id, 'fail', 0, `Breaking contract change (${changes[0].change}): ${plural(count, "consumer")} of ${api} affected (${names})`, details, command);
   if (breaking) return result(id, 'warn', 60, `Breaking contract change, but the Context Graph knows no consumer of ${api}`, details, command);
-  if (changed) return result(id, 'pass', 100, `Additive contract change; ${count} known consumer(s) of ${api}`, details, command);
-  return result(id, 'pass', 100, `Contract unchanged; ${count} known consumer(s) of ${api}`, details, command);
+  if (changed) return result(id, 'pass', 100, `Additive contract change; ${plural(count, "known consumer")} of ${api}`, details, command);
+  return result(id, 'pass', 100, `Contract unchanged; ${plural(count, "known consumer")} of ${api}`, details, command);
 }
 
 module.exports = {

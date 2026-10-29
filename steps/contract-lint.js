@@ -1,7 +1,7 @@
 'use strict';
 // Step: contract-lint (linter analogy). Lints the spec with the Postman governance rules.
 // CLI: postman spec lint <spec> -o json --no-report-events   (parsing isolated in parseLint)
-const { result, notAvailable, rerun, applyDegraded } = require('../core/step-result');
+const { plural, result, notAvailable, rerun, applyDegraded } = require('../core/step-result');
 
 const id = 'contract-lint';
 
@@ -58,7 +58,7 @@ function parseLint(stdout, specPath, command, exceptions = [], opts = {}) {
 
   // Each error costs 40 points, each warning 10, anything else 2.
   const score = Math.max(0, 100 - 40 * errors - 10 * warnings - 2 * other);
-  let summary = `${errors} error(s), ${warnings} warning(s), ${other} other`;
+  let summary = `${plural(errors, "error")}, ${plural(warnings, "warning")}, ${other} other`;
   const stale = opts.checkStale === false ? [] : exceptions.filter((_, i) => counts[i] === 0);
   const res = errors > 0 ? result(id, 'fail', score, summary, details, command)
     : warnings > 0 ? result(id, 'warn', score, summary, details, command)
@@ -78,7 +78,7 @@ function parseLint(stdout, specPath, command, exceptions = [], opts = {}) {
     if (stale.length && res.status === 'pass') {
       res.status = 'warn';
       res.score = Math.min(res.score, 90);
-      res.summary += `, ${stale.length} stale exception(s)`;
+      res.summary += `, ${plural(stale.length, "stale exception")}`;
     }
   }
   return res;

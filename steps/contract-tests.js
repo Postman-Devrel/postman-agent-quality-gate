@@ -8,7 +8,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const YAML = require('yaml');
-const { result, notAvailable, rerun } = require('../core/step-result');
+const { plural, result, notAvailable, rerun } = require('../core/step-result');
 
 const id = 'contract-tests';
 
@@ -69,8 +69,8 @@ function evaluate(s, { collectionPath, specPath, command, stdout = '' }) {
   if (s.failed > 0 && s.failures.length === 0) s = { ...s, failures: parseStdoutFailures(stdout) };
   const passedCount = Math.max(0, s.executed - s.failed);
   const score = s.executed > 0 ? Math.round((100 * passedCount) / s.executed) : 0;
-  const summary = `${passedCount}/${s.executed} assertion(s) pass, ${s.requestErrors} request error(s)`;
-  const details = [{ check: 'postman-collection', result: `${s.executed} assertion(s), ${s.failed} failed, ${s.requestErrors} request error(s)` }];
+  const summary = `${passedCount}/${plural(s.executed, "assertion")} pass, ${plural(s.requestErrors, "request error")}`;
+  const details = [{ check: 'postman-collection', result: `${plural(s.executed, "assertion")}, ${s.failed} failed, ${plural(s.requestErrors, "request error")}` }];
   for (const f of s.failures.slice(0, 10)) {
     details.push({
       check: 'failure',
@@ -82,7 +82,7 @@ function evaluate(s, { collectionPath, specPath, command, stdout = '' }) {
     details.push({ check: 'no-assertion', result: 'The collection ran 0 assertions', hint: `Add pm.test assertions to the requests of ${collectionPath}, then run \`${rerun(id)}\`.` });
   }
   if (s.requestErrors > 0) {
-    details.push({ check: 'request-error', result: `${s.requestErrors} request(s) could not be executed`, hint: `Check the URLs and variables of the requests in ${collectionPath} (the base URL variable must be {{baseUrl}}).` });
+    details.push({ check: 'request-error', result: `${plural(s.requestErrors, "request")} could not be executed`, hint: `Check the URLs and variables of the requests in ${collectionPath} (the base URL variable must be {{baseUrl}}).` });
   }
   const bad = s.failed > 0 || s.requestErrors > 0 || s.executed === 0;
   return result(id, bad ? 'fail' : 'pass', score, summary, details, command);
