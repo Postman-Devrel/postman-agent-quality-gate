@@ -86,7 +86,7 @@ test('a required step not_available caps the rating at E and the headline says w
   assert.equal(r.report.rating, 'E');
   assert.equal(r.report.passed, false);
   assert.match(r.report.headline, /rating E, required steps contract-lint, contract-tests did not run \(100\/100 on the steps that ran\)/);
-  assert.match(r.markdown, /## ❌ Postman agent quality gate: rating E, required steps contract-lint, contract-tests did not run/);
+  assert.match(r.markdown, /## ❌ API quality gate: rating E, required steps contract-lint, contract-tests did not run/);
   assert.doesNotMatch(r.markdown, /rating A/);
   const one = run({ 'contract-tests': na('contract-tests') });
   assert.equal(one.report.rating, 'E');
