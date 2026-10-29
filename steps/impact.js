@@ -94,11 +94,12 @@ function evaluate({ api, consumers, changed, changes, command }) {
       breaking: breaking && count > 0,
       check: 'consumer',
       result: `${c.name} calls ${c.endpoint ?? '?'}`,
-      hint: breaking && count > 0 ? `This change breaks ${c.name}. See the breaking changes listed below.` : 'Known consumer, no action.',
+      hint: breaking && count > 0 ? `This change breaks ${c.name}; see the breaking changes in this report.` : 'Known consumer, no action.',
     })),
     ...changes.map((c) => ({ check: 'breaking-change', result: c.change, hint: c.hint })),
   ];
-  const names = consumers.map((c) => c.name).join(', ');
+  const shown = consumers.slice(0, 3).map((c) => c.name).join(', ');
+  const names = count > 3 ? `${shown}, +${count - 3} more` : shown;
   if (breaking && count > 0) return result(id, 'fail', 0, `Breaking contract change (${changes[0].change}): ${plural(count, "consumer")} of ${api} affected (${names})`, details, command);
   if (breaking) return result(id, 'warn', 60, `Breaking contract change, but the Context Graph knows no consumer of ${api}`, details, command);
   if (changed) return result(id, 'pass', 100, `Additive contract change; ${plural(count, "known consumer")} of ${api}`, details, command);

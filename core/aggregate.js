@@ -39,7 +39,10 @@ function aggregate(cfg, results, meta = {}) {
     const rule = cfg.blockers[s.step];
     if (rule === 'on_fail' && s.status === 'fail') blockers.push(`${s.step} failed: ${s.summary}`);
     else if (rule === 'on_warn' && (s.status === 'fail' || s.status === 'warn')) blockers.push(`${s.step} is ${s.status}: ${s.summary}`);
-    else if (rule === 'on_breaking' && (s.details || []).some((d) => d && d.breaking === true)) blockers.push(`${s.step}: a change breaks at least one known consumer`);
+    else if (rule === 'on_breaking' && (s.details || []).some((d) => d && d.breaking === true)) {
+      const n = (s.details || []).filter((d) => d && d.check === 'consumer').length;
+      blockers.push(n ? `${s.step}: the change breaks ${plural(n, 'known consumer')}` : `${s.step}: a change breaks at least one known consumer`);
+    }
   }
   for (const id of cfg.required_steps) {
     const s = steps.find((x) => x.step === id);
@@ -63,7 +66,10 @@ function aggregate(cfg, results, meta = {}) {
   const feedback = [];
   const more = {}; // findings cut by the per-step cap: step -> count (report.json keeps the capped list)
   for (const s of steps.filter((x) => x.status === 'warn' || x.status === 'fail')) {
-    const items = (s.details || []).filter((d) => d && (d.hint || d.result));
+    let items = (s.details || []).filter((d) => d && (d.hint || d.result));
+    // impact: the findings are the breaking changes; the consumers are context, not findings.
+    const changes = items.filter((d) => d.check === 'breaking-change');
+    if (s.step === 'impact' && changes.length) items = changes;
     const useful = items.filter((d) => d.hint);
     const found = useful.length ? useful : [{ result: s.summary }];
     if (found.length > 8) more[s.step] = found.length - 8;
@@ -145,15 +151,18 @@ function ratchetLine(report) {
 }
 
 /** Findings of the feedback grouped by step, one Fix line when the step's findings share the same hint. */
-function renderFindings(feedback, more) {
+function renderFindings(feedback, more, { failed = false, consumers = [] } = {}) {
   const out = [];
   const order = [...new Set(feedback.map((f) => f.step))];
+  // When the gate failed: blocking (fail) groups first, then the non-blocking ones.
+  if (failed) order.sort((a, b) => (feedback.find((f) => f.step === a).status === 'fail' ? 0 : 1) - (feedback.find((f) => f.step === b).status === 'fail' ? 0 : 1));
   for (const id of order) {
     const items = feedback.filter((f) => f.step === id);
     const shared = items.every((f) => f.fix === items[0].fix);
-    out.push(`**${ICON[items[0].status] || '⚪'} ${id}**`, '');
+    out.push(`**${ICON[items[0].status] || '⚪'} ${id}**${failed && items[0].status === 'warn' ? ' (non-blocking)' : ''}`, '');
     for (const f of items) out.push(`- ${oneLine(f.finding)}${shared ? '' : `  \n  Fix: ${oneLine(f.fix)}`}`);
     if (more[id]) out.push(`- +${more[id]} more (see the step output)`);
+    if (id === 'impact' && consumers.length) out.push('', `Affected consumers (${consumers.length}): ${consumers.slice(0, 3).join(', ')}${consumers.length > 3 ? `, +${consumers.length - 3} more` : ''}`);
     if (shared) out.push('', `Fix: ${oneLine(items[0].fix)}`);
     out.push('');
   }
@@ -210,8 +219,10 @@ function renderMarkdown(cfg, report, steps, quality = {}) {
   if (degraded.length) {
     lines.push('### Degraded (the check ran weakened: at best a warning, score capped, never a full pass)', '', ...degraded.map((s) => `- 🟠 **${s.step}**: ${s.degraded}`), '');
   }
+  const impactStep = steps.find((x) => x.step === 'impact');
+  const impactConsumers = ((impactStep && impactStep.details) || []).filter((d) => d && d.check === 'consumer' && d.name).map((d) => d.name);
   if (feedback.length) {
-    lines.push(`<details><summary>${passed ? 'Suggestions, non-blocking' : 'What to fix'} (${feedback.length})</summary>`, '', ...renderFindings(feedback, more), '</details>', '');
+    lines.push(`<details><summary>${passed ? 'Suggestions, non-blocking' : 'What to fix'} (${feedback.length})</summary>`, '', ...renderFindings(feedback, more, { failed: !passed, consumers: impactConsumers }), '</details>', '');
   }
   const acceptedRows = steps.flatMap((s) => (Array.isArray(s.accepted) ? s.accepted : []).map((a) => ({ step: s.step, ...a })));
   if (acceptedRows.length) {

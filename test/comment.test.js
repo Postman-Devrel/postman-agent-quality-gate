@@ -40,6 +40,9 @@ test('first body line: stable, drop, rise, not comparable, not available', () =>
   assert.match(rise, /\*\*⬆️ API quality is raised by 16 % from `main`\*\*/);
   const zero = md({}, { baseline: base({ ...ALL100, 'ai-readiness': 0, coverage: 0, 'contract-lint': 0, 'contract-tests': 0 }, 0) });
   assert.match(zero, /\*\*⬆️ API quality is raised by 100 pts from `main`\*\*/);
+  const near = md({}, { baseline: base({ ...ALL100, 'ai-readiness': 97 }, 99) });
+  assert.match(near, /\*\*🟰 API quality is unchanged from `main`\*\*/);
+  assert.match(near, /\| 🟢 ai-readiness \| 100 \| ⬆️ \+3 \|/);
   const nc = md({}, {});
   assert.match(nc, /\*\*API quality: 100 · not comparable with `base`\*\*/);
   const none = aggregate(cfg, { 'skills-check': step('skills-check', 'pass', 100) }, {}).markdown;
@@ -155,4 +158,33 @@ test('skipped report: same style, SKIPPED title', () => {
   const { markdown } = skippedReport('origin/main');
   assert.match(markdown, /^<!-- healthcare-api-quality-gate -->\n## ⏭️ API quality gate: SKIPPED\n\n/);
   assert.match(markdown, /<sub>healthcare-api-quality-gate /);
+});
+
+const consumerDetails = (n, breaking) => Array.from({ length: n }, (_, i) => ({ check: 'consumer', name: `svc-${i + 1}`, endpoint: 'GET /x', breaking, result: `svc-${i + 1} calls GET /x`, hint: 'h' }));
+
+test('impact: breaking changes are the findings, consumers are summarized, summary names capped', () => {
+  const { evaluate } = require('../steps/impact');
+  const consumers = Array.from({ length: 32 }, (_, i) => ({ name: `svc-${i + 1}`, endpoint: 'GET /x' }));
+  const res = evaluate({ api: 'patients-api', consumers, changed: true, changes: [{ change: 'field removed', hint: 'Keep mrn, add the new name next to it' }], command: '' });
+  assert.match(res.summary, /32 consumers of patients-api affected \(svc-1, svc-2, svc-3, \+29 more\)$/);
+  assert.match(res.details[0].hint, /breaks svc-1; see the breaking changes in this report/);
+  const r = aggregate(cfg, { ...green(), impact: { ...res, step: 'impact' } }, {});
+  assert.deepEqual(r.report.feedback, [{ step: 'impact', status: 'fail', finding: 'field removed', fix: 'Keep mrn, add the new name next to it' }]);
+  assert.ok(r.report.blockers.includes('impact: the change breaks 32 known consumers'));
+  assert.match(r.markdown, /- field removed\n\nAffected consumers \(32\): svc-1, svc-2, svc-3, \+29 more\n\nFix: Keep mrn/);
+  const one = aggregate(cfg, { ...green(), impact: step('impact', 'fail', 0, [...consumerDetails(1, true), { check: 'breaking-change', result: 'x', hint: 'y' }]) }, {});
+  assert.ok(one.report.blockers.includes('impact: the change breaks 1 known consumer'));
+  const unknown = aggregate(cfg, { ...green(), impact: step('impact', 'fail', 0, [{ check: 'x', breaking: true }]) }, {});
+  assert.ok(unknown.report.blockers.includes('impact: a change breaks at least one known consumer'));
+});
+
+test('failed gate: blocking groups first, non-blocking warn groups marked', () => {
+  const m = md({
+    'ai-readiness': step('ai-readiness', 'warn', 70, [{ result: 'a', hint: 'h' }]),
+    'contract-tests': step('contract-tests', 'fail', 30, [{ result: 'b', hint: 'h2' }]),
+  });
+  assert.ok(m.indexOf('**🔴 contract-tests**') < m.indexOf('**🟠 ai-readiness** (non-blocking)'));
+  assert.match(m, /What to fix \(2\)/);
+  const ok = md({ 'ai-readiness': step('ai-readiness', 'warn', 70, [{ result: 'a', hint: 'h' }]) });
+  assert.doesNotMatch(ok, /non-blocking\)\*\*|\(non-blocking\)$/m);
 });
