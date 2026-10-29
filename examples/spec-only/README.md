@@ -5,3 +5,5 @@ A consumer of the gate with **no code at all**: a spec, a collection and `.postm
 ```sh
 npx github:healthcare-org-app/healthcare-api-quality-gate#v1 run   # from this folder
 ```
+
+The report headline compares the API quality of a branch with its base (`API quality 86 → 89 vs main`); to make a drop a blocker, add `no_regression: { max_drop: 5 }` to a `quality-gate.yml` (see [docs/adoption.md](../../docs/adoption.md)).

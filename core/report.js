@@ -1,7 +1,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const { STEP_IDS } = require('./constants');
+const { STEP_IDS, REPORT_MARKER, GATE_VERSION } = require('./constants');
 
 function readResults(resultsDir, ids) {
   const out = {};
@@ -30,7 +30,31 @@ function writeReport(resultsDir, report, markdown) {
 }
 
 function clearResults(resultsDir, ids = STEP_IDS) {
-  for (const f of [...ids.map((i) => `${i}.json`), 'report.json', 'report.md']) fs.rmSync(path.join(resultsDir, f), { force: true });
+  for (const f of [...ids.map((i) => `${i}.json`), 'baseline.json', 'report.json', 'report.md']) fs.rmSync(path.join(resultsDir, f), { force: true });
 }
 
-module.exports = { readResults, writeResult, writeReport, clearResults };
+/** Report of a run the workflow skipped: nothing the gate judges changed against the base. */
+function skippedReport(base) {
+  const name = String(base || 'the base branch').replace(/^origin\//, '');
+  const markdown = [
+    REPORT_MARKER,
+    '## ⏭️ API quality gate: skipped',
+    '',
+    `This branch no longer changes the API contract against ${name}; the gate did not run. If the change was reverted, the original change is no longer in this PR.`,
+    '',
+    `<sub>healthcare-api-quality-gate ${GATE_VERSION}</sub>`,
+    '',
+  ].join('\n');
+  return { report: { skipped: true, reason: 'no relevant change', base: name }, markdown };
+}
+
+function writeBaseline(resultsDir, baseline) {
+  fs.mkdirSync(resultsDir, { recursive: true });
+  fs.writeFileSync(path.join(resultsDir, 'baseline.json'), JSON.stringify(baseline, null, 2));
+}
+
+function readBaseline(resultsDir) {
+  try { return JSON.parse(fs.readFileSync(path.join(resultsDir, 'baseline.json'), 'utf8')); } catch { return null; }
+}
+
+module.exports = { skippedReport, writeBaseline, readBaseline, readResults, writeResult, writeReport, clearResults };

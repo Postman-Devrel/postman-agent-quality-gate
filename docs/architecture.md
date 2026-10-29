@@ -26,6 +26,7 @@ flowchart TD
 - `core/resources.js`: resolves the spec and the collection; several candidates without a choice in the config is a configuration error. `core/spec-type.js` detects `openapi-3`, `openapi-2`, `asyncapi`, `unknown`.
 - `core/runner.js`: runs a step safely. A step never throws: a crash, a missing CLI or an unsupported spec type becomes `not_available` with the reason.
 - `core/aggregate.js`: the only place that decides.
+- `core/quality.js`: the API quality index, the delta, the change risk and the ratchet (pure functions). `core/baseline.js`: where the base commit stood (artifact, rerun on a worktree, or none).
 - `steps/<step>.js`: each exports `{ id, supports, run(ctx) }` plus its pure output parser, isolated so a CLI output change touches one function.
 
 ## Step contract
@@ -46,6 +47,18 @@ Each step declares `supports` (`openapi-3` today, `*` for steps that do not read
 Weights (default): skills-check 10, contract-lint 25, contract-tests 20, coverage 5, ai-readiness 20, impact 20. Not-available steps are left out and the weights re-normalized. Ratings: A 90, B 80, C 70, D 50, else E; `pass_rating` B. All configurable. Step scores: lint `100 - 40*errors - 10*warnings`; contract-tests = pass ratio; coverage = percent; ai-readiness = the CLI score (>= 80 pass, 60-79 warn, < 60 fail, configurable via `ai_readiness`); impact: breaking with consumers 0 (fail), breaking without known consumer 60 (warn), else 100.
 
 Blockers are data: `blockers: { contract-lint: on_fail, impact: on_breaking }` (rules `on_fail`, `on_warn`, `on_breaking`), plus `required_steps` (default `contract-lint`, `contract-tests`): a required step that is `not_available` is a blocker.
+
+## API quality delta
+
+A verdict says where a commit stands; the delta says whether the PR moved the API up or down. Choices:
+
+- **The index describes the API, not the repo or the change.** It is the weighted score, with the gate's own weights re-normalized and `not_available` steps left out, over `contract-lint`, `contract-tests`, `coverage` and `ai-readiness`. `skills-check` is repo hygiene and `impact` is a property of the change (breaking or not, for how many consumers): that is reported next to the delta as the **change risk**, never inside it. An API can get better while the change is breaking, and both facts are shown.
+- **Same steps on both sides.** The delta is computed over the steps that have a score on the base and on the head; a step missing on one side is left out of both, so two indexes over different steps are never compared. Points are the difference of the rounded indexes, percent is relative to the base (omitted when the base is 0), and `stable` means `|points| <= 2`.
+- **Baseline sources, in order.** (1) `artifact`: in CI, the `baseline` job takes the `gate-report` of the latest successful run of the caller's workflow on the exact merge-base SHA (pushes to the default branch already run the gate and upload it; the caller grants `actions: read`). It is used only if it was written by the same gate version, with the same settings that feed the index (`config_hash`) and for that commit. (2) `rerun`: otherwise the four quality steps run on a `git worktree` of the base commit, with the head's settings. (3) `none`: if neither works the report says `not comparable` with the reason; there is never a made-up number. The result is recorded in `report.json` (`baseline`, `delta`), and passed between jobs as `gate-baseline/baseline.json`.
+- **Never fails the run.** The `baseline` job and the `baseline` command do not throw; the gate decides on its own score and blockers, and only the optional ratchet turns a drop into a blocker.
+- **Locally**, `run` computes the baseline against the merge-base with the default branch (`GATE_BASE_REF`, else `origin/HEAD`, `origin/main`, `origin/master`); without a base branch, or on a repository without commits, it is `not comparable`.
+- **Ratchet.** `no_regression: { max_drop }` is the only way the delta can block. It is off by default (a quality drop is information, not a failure), and it is not enforced when there is no comparable baseline (the report says so).
+- **Skipped runs.** When no file the gate judges changed against the base, the workflow still posts nothing new, but if the PR already has a gate comment (marker `<!-- healthcare-api-quality-gate -->`) it is updated in place: a stale red comment on a branch that no longer changes the contract would be misleading, for example after the change was reverted.
 
 ## Postman CLI
 
@@ -70,9 +83,19 @@ Limits:
 - The runner installs its dependencies on every job (`npm ci --omit=dev`, one package) and the Postman CLI from npm; there is no caching in v1.
 - `self-test.yml` uses the local action (`uses: ./`), so the repository tests the code of the commit it runs on, not a tag.
 
-Jobs of `gate.yml`: `changes` (relevant files: `.postman/`, spec and collection, symlink targets included, the config file, plus the `extra-paths` input), a matrix `gate` (one job per step, uploads `gate-<step>`), then `quality-gate` (downloads, aggregates, updates the marked PR comment, fails the check when the gate fails). Same behaviour as the original workflow: one concurrency group per branch, `not_available` when the secret is missing (fork PRs), a skipped report when nothing relevant changed so the check can be required.
+Jobs of `gate.yml`: `changes` (relevant files: `.postman/`, spec and collection, symlink targets included, the config file, plus the `extra-paths` input), a matrix `gate` (one job per step, uploads `gate-<step>`), `baseline` (the quality index of the base commit, uploads `gate-baseline`), then `quality-gate` (downloads, aggregates, updates the marked PR comment, fails the check when the gate fails). The composite action has two more modes for this: `baseline` and `skipped`. Same behaviour as the original workflow: one concurrency group per branch, `not_available` when the secret is missing (fork PRs), a skipped report when nothing relevant changed so the check can be required.
 
 Third-party actions are pinned by commit SHA.
+
+## The loop around the gate
+
+The gate runs in CI; the fix loop (`plugin/skills/gate-loop`) runs in the developer's own Claude Code session. There is no per-repo coding agent: the session has the Postman plugin, whose SessionStart hook routes API work to `postman:api-engineer`, and the platform plugin adds the `gate-loop` skill and the read-only `gate-verdict` agent. The loop is built so that a green gate cannot be obtained by undoing the work:
+
+- the intent of the change (PR title and body) is collected before round 1 and passed to the reviewer every round;
+- the coder makes a breaking change **compatible** (old field kept and `deprecated`, new one added next to it, code, tests and collection covering both), it never reverts it;
+- when no compatible fix exists the loop ends in `NEEDS_DECISION`: the PR is converted to draft, one comment lists the blocker and the options, and a human decides. The gate never merges.
+
+These rules take precedence over the defaults of the Postman skills (for example "never block on the human"), which is why they are stated in the skill and not left to the plugin.
 
 ## Lint exceptions
 

@@ -65,6 +65,8 @@ blockers:                            # step: on_fail | on_warn | on_breaking
   contract-tests: on_fail
   impact: on_breaking
 required_steps: [contract-lint, contract-tests]   # not_available => blocker
+no_regression:                       # optional ratchet, off by default (see below)
+  max_drop: 5
 contract-lint:
   exceptions:                        # accepted lint findings: a traced human decision, see below
     - path: "paths./api/appointments/"     # exact match on the violation's path
@@ -73,6 +75,19 @@ contract-lint:
 ```
 
 An unknown key, step id or invalid value is reported with the file and key; the runner exits 2.
+
+### Quality delta and the optional ratchet
+
+Every report compares the API quality index (contract-lint, contract-tests, coverage, ai-readiness) of the PR with the one of its base commit (`API quality 86 → 72 vs main (−14 pts, −16 %)`) and states the change risk from `impact`. Nothing to configure: in CI it uses the `gate-report` of the last successful gate run on the base commit, so keep the gate running on pushes to the default branch (the example workflow below does) and grant `actions: read`. Without it the gate runs the four steps on the base commit itself, which costs one more job; if even that is impossible the report says `not comparable`.
+
+To make a quality drop a blocker, set a ratchet:
+
+```yaml
+no_regression:
+  max_drop: 5      # points of the index; a drop larger than this is a blocker
+```
+
+It is off by default, and ignored (the report says so) when there is no comparable baseline. A move of 2 points or less is shown as `stable`.
 
 ### Accepting a contract-lint finding on purpose
 
@@ -89,7 +104,7 @@ Sometimes a lint finding is correct and still intended (for example a trailing s
 | Variable | Use |
 |----------|-----|
 | `POSTMAN_API_KEY` | Logs in to Postman (governance lint, YAML run report, Context Graph). Only through the environment, never printed. Without it: syntax-only lint, and `impact` is `not_available`. |
-| `GATE_BASE_REF` | Base ref for the breaking-change comparison. Default: the remote default branch (`origin/HEAD`, else `origin/main`, `origin/master`). The comparison uses the merge base. |
+| `GATE_BASE_REF` | Base ref for the breaking-change comparison and for the quality delta. Default: the remote default branch (`origin/HEAD`, else `origin/main`, `origin/master`). The comparison uses the merge base. |
 | `PQG_RUNNER_COMMAND` | Overrides the runner command quoted in hints (default `npx github:healthcare-org-app/healthcare-api-quality-gate#v1`). |
 
 ## 4. GitHub Actions
@@ -117,13 +132,17 @@ jobs:
 
 Add the repository secret `POSTMAN_API_KEY` (Settings, Secrets and variables, Actions) first; without it the cloud-backed steps are `not_available` (and `contract-lint` is syntax-only). Make the `gate / quality-gate` check required to block merges. Inputs: `config`, `extra-paths`, `steps` (JSON list), `working-directory`. See docs/architecture.md for how the gate code gets its version.
 
+## Developers: no agent to set up
+
+Adopting the gate needs no per-repo coding agent and no agent file in the service. The loop (branch, push, read the verdict, fix, at most 3 rounds) is run by the developer's own Claude Code session: install the Postman plugin and the platform plugin (`/plugin marketplace add healthcare-org-app/healthcare-api-quality-gate`, then `/plugin install healthcare-api-quality-gate@healthcare-api-quality-gate`) and ask it to follow the `gate-loop` skill when you change the API. The Postman plugin routes the contract, collection and mock work to `postman:api-engineer`; `gate-verdict` is the only other agent, a read-only reviewer. The loop keeps your change (a breaking rename becomes "old field deprecated, new field next to it") and, when no compatible fix exists, converts the PR to draft with a comment listing the options instead of undoing the work.
+
 ## 5. Locally
 
 ```sh
 npx github:healthcare-org-app/healthcare-api-quality-gate#v1 run
 ```
 
-Needs Node 22+ and the `postman` CLI (1.76.0) on the PATH; `postman login` for the full verdict. Nothing else: no build, no running server. Run it from the folder that holds `.postman/`. Results land in `gate-results/` (add it to `.gitignore`).
+Needs Node 22+ and the `postman` CLI (1.76.0) on the PATH; `postman login` for the full verdict. Nothing else: no build, no running server. Run it from the folder that holds `.postman/`. Results land in `gate-results/` (add it to `.gitignore`). The report also compares your branch with the merge-base of the default branch; `--no-baseline` skips that.
 
 Services that adopt it (see the table in the README):
 

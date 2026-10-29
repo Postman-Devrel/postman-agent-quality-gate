@@ -4,7 +4,7 @@ author: healthcare-org-app platform team
 
 inputs:
   mode:
-    description: "run (default): run the step(s), paths: print the files the gate judges, aggregate: score the step results."
+    description: "run (default): run the step(s), paths: print the files the gate judges, aggregate: score the step results, baseline: quality index of the base commit (baseline.json), skipped: report of a run the workflow skipped."
     default: run
   step:
     description: "A step id (contract-lint, ...) or empty for all enabled steps followed by the aggregation."
@@ -18,6 +18,12 @@ inputs:
   working-directory:
     description: Folder of the project to judge (where .postman/ lives).
     default: .
+  baseline-report:
+    description: "mode=baseline: report.json of the latest successful gate run on the base commit, if the CI found one (absolute path). Without it, or when it is not comparable, the quality steps run on the base commit."
+    default: ''
+  base:
+    description: "mode=skipped: name of the base branch, for the message."
+    default: ''
   no-exit-code:
     description: "'true' (default) never fails the step: the final check of the workflow decides."
     default: 'true'
@@ -39,7 +45,7 @@ runs:
         ACTION_PATH: ${{ github.action_path }}
       run: npm ci --omit=dev --prefix "$ACTION_PATH" --no-audit --no-fund
     - name: Install the pinned Postman CLI
-      if: inputs.mode == 'run'
+      if: inputs.mode == 'run' || inputs.mode == 'baseline'
       shell: bash
       env:
         ACTION_PATH: ${{ github.action_path }}
@@ -47,7 +53,7 @@ runs:
         version="$(node -p "require(process.env.ACTION_PATH + '/package.json').postmanCli")"
         npm install -g "postman-cli@${version}" --no-audit --no-fund
     - name: Log in to Postman
-      if: inputs.mode == 'run'
+      if: inputs.mode == 'run' || inputs.mode == 'baseline'
       shell: bash
       # The key is read from the environment of the calling step (env: POSTMAN_API_KEY) and never printed.
       # Without it (fork pull request) the steps that need the cloud report not_available.
@@ -69,7 +75,7 @@ runs:
         regex="$(node "$ACTION_PATH/bin/healthcare-api-quality-gate.js" paths "${args[@]}")"
         echo "regex=$regex" >> "$GITHUB_OUTPUT"
     - name: Run the gate, a step never fails the job (the aggregation decides)
-      if: inputs.mode == 'run' || inputs.mode == 'aggregate'
+      if: inputs.mode == 'run' || inputs.mode == 'aggregate' || inputs.mode == 'baseline' || inputs.mode == 'skipped'
       shell: bash
       working-directory: ${{ inputs.working-directory }}
       env:
@@ -79,9 +85,13 @@ runs:
         CONFIG: ${{ inputs.config }}
         RESULTS_DIR: ${{ inputs.results-dir }}
         NO_EXIT_CODE: ${{ inputs.no-exit-code }}
+        BASELINE_REPORT: ${{ inputs.baseline-report }}
+        BASE: ${{ inputs.base }}
       run: |
         args=("$MODE")
         [ "$MODE" = run ] && [ -n "$STEP" ] && args+=("$STEP")
+        [ "$MODE" = baseline ] && [ -n "$BASELINE_REPORT" ] && args+=(--report "$BASELINE_REPORT")
+        [ "$MODE" = skipped ] && [ -n "$BASE" ] && args+=(--base "$BASE")
         args+=(--results-dir "$RESULTS_DIR")
         [ -n "$CONFIG" ] && args+=(--config "$CONFIG")
         [ "$NO_EXIT_CODE" = true ] && args+=(--no-exit-code)
