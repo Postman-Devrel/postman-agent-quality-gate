@@ -39,6 +39,24 @@ function runUrl(env = process.env) {
   return server && repo && id ? `${server}/${repo}/actions/runs/${id}` : null;
 }
 
+/**
+ * Commit the report is about. On pull_request events GITHUB_SHA (and git HEAD of the checkout) is GitHub's
+ * merge commit, not the commit the author pushed: prefer GATE_HEAD_SHA, then the PR head SHA of the event
+ * payload (GITHUB_EVENT_PATH), then `fallback` (git HEAD).
+ */
+function headCommit(env = process.env, fallback = null) {
+  const sha = (v) => (typeof v === 'string' && /^[0-9a-f]{40}$/i.test(v.trim()) ? v.trim() : null);
+  const { GATE_HEAD_SHA: given, GITHUB_EVENT_PATH: file } = env || {};
+  if (sha(given)) return sha(given);
+  if (file) {
+    try {
+      const payload = JSON.parse(fs.readFileSync(file, 'utf8'));
+      if (sha(payload && payload.pull_request && payload.pull_request.head && payload.pull_request.head.sha)) return sha(payload.pull_request.head.sha);
+    } catch { /* no readable event payload: fall back */ }
+  }
+  return fallback || null;
+}
+
 /** Report of a run the workflow skipped: nothing the gate judges changed against the base. */
 function skippedReport(base) {
   const name = String(base || 'the base branch').replace(/^origin\//, '');
@@ -63,4 +81,4 @@ function readBaseline(resultsDir) {
   try { return JSON.parse(fs.readFileSync(path.join(resultsDir, 'baseline.json'), 'utf8')); } catch { return null; }
 }
 
-module.exports = { runUrl, skippedReport, writeBaseline, readBaseline, readResults, writeResult, writeReport, clearResults };
+module.exports = { runUrl, headCommit, skippedReport, writeBaseline, readBaseline, readResults, writeResult, writeReport, clearResults };
