@@ -67,14 +67,12 @@ The `plugin/` folder is a Claude Code plugin and this repository is its marketpl
 /plugin install postman-agent-quality-gate --marketplace Postman-Devrel/postman-agent-quality-gate
 ```
 
-It ships three things:
+It ships two things:
 
 - **`gate-verdict` agent** (read-only): given a branch and the exact commit SHA, it finds the `quality-gate` run for that commit (workflow name configurable), waits for it, downloads the `gate-report` artifact, checks `schema_version` and returns `PASSED`, `FAILED` or `SKIPPED` with a numbered fixes brief. `not_available` and degraded steps are listed as gaps, never as a pass. The repository comes from `gh repo view`.
 - **`gate-loop` skill**: the loop protocol. Your own coding agent (a subagent, a skill, the main session) works on a branch and pushes; after every push, and on every failing `quality-gate` CI event, `gate-verdict` is called with the branch and SHA; the brief goes word for word to the same coding agent, which pushes to the same branch; stop on PASSED or after 3 rounds, then report rounds, rating per round, what changed and the branch or PR. It never edits the gate, never merges or pushes to the default branch unasked. Local check before pushing: `npx github:Postman-Devrel/postman-agent-quality-gate#v1 run`.
-- **A live pane** (a Claude Code mod, hooks module in `plugin/hooks/`): `/gate` and `/gate-all` show local and CI scores per branch and PR, the detail and what to fix; `/gate-band` toggles a band above the prompt. Needs `git` and an authenticated `gh`. Options (`/config`, or `pluginConfigs`): `workflow` (default `quality-gate`) and `resultsDir` (default `gate-results`, git-ignore it). A report with an unknown `schema_version` is read best effort and flagged.
 
-To plug it into your own coder, name `gate-verdict` and `gate-loop` in the coding agent's instructions (for example in `CLAUDE.md`): "after every push, follow the gate-loop skill". The brief is plain text with no tool names, so it works with any coding agent. Mod tests: `claude plugin test plugin`.
-
+To plug it into your own coder, name `gate-verdict` and `gate-loop` in the coding agent's instructions (for example in `CLAUDE.md`): "after every push, follow the gate-loop skill". The brief is plain text with no tool names, so it works with any coding agent.
 ## License
 
 Apache License 2.0, see [LICENSE](LICENSE) and [NOTICE](NOTICE).
