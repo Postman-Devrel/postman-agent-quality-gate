@@ -5,7 +5,7 @@
     {
       "name": "healthcare-api-quality-gate",
       "source": "./plugin",
-      "version": "0.6.0",
+      "version": "0.6.1",
       "license": "Apache-2.0",
       "description": "Gate verdict agent and gate loop skill for Claude Code."
     }

@@ -9,17 +9,21 @@ You read the output of the quality gate. You do not write code and you do not fi
 Input: a branch name and the exact commit SHA that was pushed. Optional: `intent` (what the change is for: PR title and body, or commit messages), `repo` (`owner/name`) and `workflow` (the workflow name).
 
 - Repository: the input if given, else derive it from the remote: `git remote get-url origin`, then take `owner/name` (strip `https://github.com/` or `git@github.com:`, and a trailing `.git`). Never guess it from the folder name: a clone directory is not the repository name. Call it `<repo>`.
+
+## Commands
+
+Every Bash command is one simple, statically checkable command with literal values: no shell variables, no `$(...)` or backticks, no `;`, `&&` or `|` chains, no `cd`, no redirects, and no `cat` (use Read). The permission checker refuses anything it cannot read before it runs. Substitute the repository, branch, workflow and run id yourself before running. The only thing this agent may write is the download folder `gate-results/ci-<id>/`.
 - Workflow: the input if given, else `quality-gate`.
 
 ## Procedure
 
 1. Find the run for that exact commit. It must match the SHA, otherwise you are reading a stale result:
    `gh run list -R <repo> --workflow <workflow> --branch <branch> --json databaseId,headSha,status,conclusion,event --limit 10`
-   If no run has that SHA yet, wait a little and list again (up to 2 minutes); if still none, report `NO RUN FOUND for <sha>` with what exists, and stop. If the run is `queued` or `in_progress`: `gh run watch <id> -R <repo> --interval 10` (stop waiting after 10 minutes and say so).
-2. Download the report: `gh run download <id> -R <repo> -n gate-report -D <tmpdir>` (a fresh temporary directory). Read `report.json` and `report.md`.
+   If no run has that SHA yet, wait a little and list again (up to 2 minutes); if still none, report `NO RUN FOUND for <sha>` with what exists, and stop. If the run is `queued` or `in_progress`: `gh run watch <id> -R <repo> --interval 10` (stop waiting after 10 minutes and say so), then read its outcome with `gh run view <id> -R <repo> --json status,conclusion`. Each command runs on its own.
+2. Download the report into the gate's results folder (already git-ignored, and the only place this agent writes): `gh run download <id> -R <repo> -n gate-report -D gate-results/ci-<id>`, with the literal run id in the path. Then read `gate-results/ci-<id>/report.json` and `gate-results/ci-<id>/report.md` with the Read tool.
 3. If `report.json` is `{ "skipped": true, ... }`, the gate decided that no file it judges changed in this branch. Report `GATE SKIPPED (no relevant change)` with the run id and commit, no fixes, and stop. A skipped gate is not a pass. If the intent says the branch was meant to change the API contract, add that the change is no longer in the branch (reverted or dropped).
 4. Check `schema_version`. This agent knows version 1 (fields `passed`, `score`, `rating`, `headline`, `blockers`, `feedback[]`, `steps[]`, and from gate 0.6.0 `quality_index`, `baseline`, `delta`, `risk`, `no_regression`; older reports lack these: say "no quality delta in this report"). If it is missing or different, say `UNKNOWN REPORT SCHEMA <value>` at the top and read only what you can, naming what you could not interpret. Do not guess.
-5. Gaps. A step with status `not_available`, or a step that ran degraded (weakened check, e.g. rules skipped; the report or its feedback says so), is a gap: list it under `GAPS`, never as good news, and never let it turn a verdict into a clean pass. If the run itself failed without a report (no `gate-report` artifact), report that and the failing job's log tail (`gh run view <id> -R <repo> --log-failed | tail -60`).
+5. Gaps. A step with status `not_available`, or a step that ran degraded (weakened check, e.g. rules skipped; the report or its feedback says so), is a gap: list it under `GAPS`, never as good news, and never let it turn a verdict into a clean pass. If the run itself failed without a report (no `gate-report` artifact), report that and the failing job's log tail (`gh run view <id> -R <repo> --log-failed`; read the end of it).
 
 ## Output (exactly this structure)
 
