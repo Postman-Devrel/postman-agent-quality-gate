@@ -35,11 +35,11 @@ test('first body line: stable, drop, rise, not comparable, not available', () =>
   const stable = md({}, { baseline: base(ALL100, 100) });
   assert.match(stable, /\n\*\*🟰 API quality is unchanged from `main`\*\*/);
   const drop = md({ 'contract-tests': step('contract-tests', 'fail', 30) }, { baseline: base(ALL100, 100) });
-  assert.match(drop, /\*\*⬇️ API quality is lowered by 20 % from `main`\*\*/);
+  assert.match(drop, /\*\*⬇️ API quality is lowered by 14 % from `main`\*\*/);
   const rise = md({}, { baseline: base({ ...ALL100, 'ai-readiness': 50 }, 86) });
-  assert.match(rise, /\*\*⬆️ API quality is raised by 16 % from `main`\*\*/);
+  assert.match(rise, /\*\*⬆️ API quality is raised by 11 % from `main`\*\*/);
   const zero = md({}, { baseline: base({ ...ALL100, 'ai-readiness': 0, coverage: 0, 'contract-lint': 0, 'contract-tests': 0 }, 0) });
-  assert.match(zero, /\*\*⬆️ API quality is raised by 100 pts from `main`\*\*/);
+  assert.match(zero, /\*\*⬆️ API quality is raised by 233 % from `main`\*\*/);
   const near = md({}, { baseline: base({ ...ALL100, 'ai-readiness': 97 }, 99) });
   assert.match(near, /\*\*🟰 API quality is unchanged from `main`\*\*/);
   assert.match(near, /\| 🟢 ai-readiness \| 100 \| ⬆️ \+3 \|/);
@@ -144,7 +144,7 @@ test('accepted exceptions and reproduce blocks are collapsed; footer carries the
   assert.match(m, /<details><summary>Accepted exceptions \(1, human decisions\)<\/summary>\n\nThese findings are removed/);
   assert.match(m, /<details><summary>Reproduce locally<\/summary>\n\n/);
   assert.match(m, /\*\*contract-lint\*\*: `npx github:healthcare-org-app\/healthcare-api-quality-gate#v1 run contract-lint`\s+underlying: `postman spec lint x\.yaml`/);
-  assert.match(m, new RegExp(`<sub>healthcare-api-quality-gate ${GATE_VERSION} · Postman CLI 1\\.76\\.0 · spec \`openapi\\.yaml\` \\(openapi-3\\) · collection \`postman/collections/c\` · baseline: \`main\` @ \`bbbbbbb\` \\(gate report of that commit\\) · score weights: .*contract-lint 25`));
+  assert.match(m, new RegExp(`<sub>healthcare-api-quality-gate ${GATE_VERSION} · Postman CLI 1\\.76\\.0 · spec \`openapi\\.yaml\` \\(openapi-3\\) · collection \`postman/collections/c\` · baseline: \`main\` @ \`bbbbbbb\` \\(gate report of that commit\\) · API quality index \\(contract-lint, contract-tests, coverage, ai-readiness\\): 100 → 100 · base score 100 reconstructed from main's steps \\(gate report of that commit\\), impact counted 100, skills-check from this run · score weights: .*contract-lint 25`));
 });
 
 test('plural helper and step summaries', () => {

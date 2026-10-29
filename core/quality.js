@@ -52,6 +52,41 @@ function computeDelta(cfg, headScores, baseline) {
   };
 }
 
+/**
+ * Gate score (the rating score: all steps, gate weights, not_available left out, re-normalized) of a list of
+ * step results ({ step, status, score }). null when no step counts.
+ */
+function gateScore(cfg, steps) {
+  const counted = (steps || []).filter((s) => cfg.steps.includes(s.step) && s.status !== 'not_available' && typeof s.score === 'number' && (cfg.weights[s.step] || 0) > 0);
+  const total = counted.reduce((sum, s) => sum + cfg.weights[s.step], 0);
+  return total ? Math.round(counted.reduce((sum, s) => sum + s.score * cfg.weights[s.step], 0) / total) : null;
+}
+
+/**
+ * Head gate score against the base's gate score (what the reader sees as "74/100" against what main had).
+ * The base score is always reconstructed, never read from the base's own report: that report includes the base's
+ * own impact result (its last change), so a breaking change merged on main would lower main's score and make a
+ * clean PR read "raised". Same weights over the head's counted steps: quality steps from baseline.steps (gate
+ * report of the base commit or steps re-run on it), impact = 100 (the base is the reference, it breaks nothing),
+ * skills-check = the head's value (repo hygiene). A step the base cannot supply is left out of the base side.
+ * null when there is nothing to compare: never a made-up number.
+ * Returns { head, base, points, percent, stable, source: 'artifact' | 'rerun' } (source: where the base's step scores came from).
+ */
+function scoreDelta(cfg, headSteps, baseline) {
+  if (!baseline || baseline.source === 'none' || !baseline.steps) return null;
+  const head = gateScore(cfg, headSteps);
+  if (head === null) return null;
+  const counted = (headSteps || []).filter((s) => cfg.steps.includes(s.step) && s.status !== 'not_available' && typeof s.score === 'number' && (cfg.weights[s.step] || 0) > 0);
+  const values = counted
+    .map((s) => ({ id: s.step, score: s.step === 'impact' ? 100 : s.step === 'skills-check' ? s.score : QUALITY_STEPS.includes(s.step) ? baseline.steps[s.step] : undefined }))
+    .filter((v) => typeof v.score === 'number');
+  const total = values.reduce((sum, v) => sum + cfg.weights[v.id], 0);
+  if (!total) return null;
+  const base = Math.round(values.reduce((sum, v) => sum + v.score * cfg.weights[v.id], 0) / total);
+  const points = head - base;
+  return { head, base, points, percent: base > 0 ? Math.round((points / base) * 100) : null, stable: Math.abs(points) <= STABLE_POINTS, source: baseline.source === 'artifact' ? 'artifact' : 'rerun' };
+}
+
 /** Change risk, from the impact step: not a delta, a property of the change. */
 function changeRisk(steps) {
   const s = (steps || []).find((x) => x.step === 'impact');
@@ -97,4 +132,4 @@ function riskText(risk) {
   return risk.consumers ? `breaking change for ${risk.consumers} consumer${risk.consumers > 1 ? 's' : ''}` : 'breaking change, no known consumer';
 }
 
-module.exports = { QUALITY_STEPS, STABLE_POINTS, indexFromScores, scoresOf, computeDelta, changeRisk, configHash, ratchet, deltaText, riskText, signed };
+module.exports = { QUALITY_STEPS, STABLE_POINTS, indexFromScores, scoresOf, computeDelta, gateScore, scoreDelta, changeRisk, configHash, ratchet, deltaText, riskText, signed };

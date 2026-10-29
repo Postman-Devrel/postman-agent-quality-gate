@@ -2,7 +2,7 @@
 // Aggregation: step results -> composite score, rating, blockers, feedback, report.json and report.md.
 // This is the only place that decides pass or fail.
 const { applyDegraded, plural } = require('./step-result');
-const { QUALITY_STEPS, indexFromScores, scoresOf, computeDelta, changeRisk, configHash, ratchet, deltaText, riskText, signed } = require('./quality');
+const { QUALITY_STEPS, indexFromScores, scoresOf, computeDelta, scoreDelta, changeRisk, configHash, ratchet, deltaText, riskText, signed } = require('./quality');
 const { LETTERS, REPORT_MARKER, SCHEMA_VERSION, GATE_VERSION, RUNNER_COMMAND } = require('./constants');
 
 const ICON = { pass: '🟢', warn: '🟠', fail: '🔴', not_available: '⚪' };
@@ -56,6 +56,7 @@ function aggregate(cfg, results, meta = {}) {
   const baseline = meta.baseline || { ref: null, sha: null, source: 'none', gate_version: null, quality_index: null, steps: null, reason: 'no baseline was computed' };
   const label = baseLabel(baseline.ref);
   const delta = computeDelta(cfg, headScores, baseline);
+  const sDelta = scoreDelta(cfg, steps, baseline);
   const risk = changeRisk(steps);
   const ratchetResult = ratchet(cfg, delta, label);
   if (ratchetResult.blocker) blockers.push(ratchetResult.blocker);
@@ -106,6 +107,7 @@ function aggregate(cfg, results, meta = {}) {
     quality_index: qualityIndex,
     baseline,
     delta: delta ? { points: delta.points, percent: delta.percent, stable: delta.stable } : null,
+    score_delta: sDelta ? { base: sDelta.base, head: sDelta.head, points: sDelta.points, percent: sDelta.percent, stable: sDelta.stable, source: sDelta.source } : null,
     risk: { breaking: risk.breaking, consumers: risk.consumers },
     ...(cfg.no_regression ? { no_regression: { max_drop: ratchetResult.max_drop, status: ratchetResult.status } } : {}),
     blockers,
@@ -118,21 +120,21 @@ function aggregate(cfg, results, meta = {}) {
       ...(Array.isArray(accepted) ? { accepted_exceptions: accepted.length } : {}),
     })),
   };
-  return { report, markdown: renderMarkdown(cfg, report, steps, { delta, label, more, risk }) };
+  return { report, markdown: renderMarkdown(cfg, report, steps, { delta, label, more, risk, sDelta }) };
 }
 
 const oneLine = (s) => String(s ?? '').replace(/\s*\n\s*/g, ' ').trim();
 const MINUS = '−';
 
-/** "**🟰 API quality is unchanged from `main`**", then the reason when there is no comparison. */
-function qualityHeader(report, label, delta) {
+/** "**🟰 API quality is unchanged from `main`**" (gate score against the base's), then the reason when there is no comparison. */
+function qualityHeader(report, label, sDelta) {
   const b = report.baseline;
   if (report.quality_index === null) return ['**API quality: not available**', 'No scored step among contract-lint, contract-tests, coverage, ai-readiness.'];
-  if (b && b.source !== 'none' && delta) {
-    const abs = Math.abs(delta.points);
-    if (delta.stable) return [`**🟰 API quality is unchanged from \`${label}\`**`];
-    const up = delta.points > 0;
-    const amount = delta.percent !== null ? `${Math.abs(delta.percent)} %` : `${abs} ${abs === 1 ? 'pt' : 'pts'}`;
+  if (b && b.source !== 'none' && sDelta) {
+    const abs = Math.abs(sDelta.points);
+    if (sDelta.stable) return [`**🟰 API quality is unchanged from \`${label}\`**`];
+    const up = sDelta.points > 0;
+    const amount = sDelta.percent !== null ? `${Math.abs(sDelta.percent)} %` : `${abs} ${abs === 1 ? 'pt' : 'pts'}`;
     return [`**${up ? '⬆️' : '⬇️'} API quality is ${up ? 'raised' : 'lowered'} by ${amount} from \`${label}\`**`];
   }
   return [`**API quality: ${report.quality_index} · not comparable with \`${label}\`**`, `Not comparable with \`${label}\`: ${(b && b.reason) || 'no baseline'}.`];
@@ -171,7 +173,7 @@ function renderFindings(feedback, more, { failed = false, consumers = [] } = {})
 
 function renderMarkdown(cfg, report, steps, quality = {}) {
   const { passed, rating, score, blockers, feedback } = report;
-  const { delta, label, more = {}, risk = { assessed: false } } = quality;
+  const { delta, label, more = {}, risk = { assessed: false }, sDelta = null } = quality;
   const baseSteps = report.baseline && report.baseline.steps;
   const withBase = Boolean(delta);
   const vsCell = (s) => {
@@ -193,7 +195,7 @@ function renderMarkdown(cfg, report, steps, quality = {}) {
     ...(report.commit ? [`commit \`${String(report.commit).slice(0, 7)}\``] : []),
     ...(report.run_url ? [`[CI run](${report.run_url})`] : []),
   ];
-  const header = qualityHeader(report, label, delta);
+  const header = qualityHeader(report, label, sDelta);
   const lines = [
     REPORT_MARKER,
     `## ${passed ? '✅' : '❌'} API quality gate: ${passed ? 'PASSED' : 'FAILED'}`,
@@ -260,6 +262,8 @@ function renderMarkdown(cfg, report, steps, quality = {}) {
     ...(report.spec ? [`spec \`${report.spec.path}\` (${report.spec.type})`] : []),
     ...(report.collection ? [`collection \`${report.collection.path}\``] : []),
     ...(b && b.source !== 'none' && b.sha ? [`baseline: \`${label}\` @ \`${String(b.sha).slice(0, 7)}\` (${b.source === 'artifact' ? 'gate report of that commit' : 'steps re-run on that commit'})`] : []),
+    `API quality index (${QUALITY_STEPS.join(', ')}): ${report.quality_index === null ? 'not available' : delta ? `${delta.base} → ${delta.head}` : report.quality_index}`,
+    ...(sDelta ? [`base score ${sDelta.base} reconstructed from ${label}'s steps (${sDelta.source === 'artifact' ? 'gate report of that commit' : 're-run'}), impact counted 100, skills-check from this run`] : []),
     ...(weights ? [`score weights: ${weights}`] : []),
   ];
   lines.push(`<sub>${foot.join(' · ')}</sub>`, '');

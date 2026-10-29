@@ -78,7 +78,7 @@ An unknown key, step id or invalid value is reported with the file and key; the 
 
 ### Quality delta and the optional ratchet
 
-Every report compares the API quality index (contract-lint, contract-tests, coverage, ai-readiness) of the PR with the one of its base commit (`API quality 86 → 72 vs main (−14 pts, −16 %)`) and states the change risk from `impact`. Nothing to configure: in CI it uses the `gate-report` of the last successful gate run on the base commit, so keep the gate running on pushes to the default branch (the example workflow below does) and grant `actions: read`. Without it the gate runs the four steps on the base commit itself, which costs one more job; if even that is impossible the report says `not comparable`.
+Every report compares the API quality index (contract-lint, contract-tests, coverage, ai-readiness) of the PR with the one of its base commit (`API quality 86 → 72 vs main (−14 pts, −16 %)`) and states the change risk from `impact`. The first line of the PR comment compares the gate score (the rating's score, impact included) with the base's, for example `API quality is lowered by 21 % from main`; the footer shows the index move too. Nothing to configure: in CI it uses the `gate-report` of the last successful gate run on the base commit, so keep the gate running on pushes to the default branch (the example workflow below does) and grant `actions: read`. Without it the gate runs the four steps on the base commit itself, which costs one more job; if even that is impossible the report says `not comparable`.
 
 To make a quality drop a blocker, set a ratchet:
 
