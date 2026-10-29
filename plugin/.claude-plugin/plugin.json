@@ -1,6 +1,6 @@
 {
   "name": "healthcare-api-quality-gate",
-  "version": "0.5.0",
+  "version": "0.6.1",
   "description": "Works with the healthcare-api-quality-gate CI gate: a gate-verdict agent that reads the CI result and writes a fixes brief, and a gate-loop skill for the fix loop.",
   "author": { "name": "healthcare-org-app platform team" },
   "license": "Apache-2.0"
