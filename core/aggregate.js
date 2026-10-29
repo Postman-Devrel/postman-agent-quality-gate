@@ -96,7 +96,7 @@ function renderMarkdown(cfg, report, steps) {
   });
   const lines = [
     REPORT_MARKER,
-    `## ${passed ? '✅' : '❌'} Postman agent quality gate: ${headline || `rating ${rating} (${score}/100)`}`,
+    `## ${passed ? '✅' : '❌'} API quality gate: ${headline || `rating ${rating} (${score}/100)`}`,
     '',
     `**${passed ? 'PASSED' : 'FAILED'}**. Required: rating ${cfg.pass_rating} or better and no blocker.`,
     '',

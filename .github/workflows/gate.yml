@@ -1,4 +1,4 @@
-# Reusable workflow: the Postman agent quality gate for a project that has a Postman project (spec, collection).
+# Reusable workflow: the platform API quality gate for a project that has a Postman project (spec, collection).
 #
 # Caller (in the project, e.g. .github/workflows/quality-gate.yml):
 #   on: { push: {}, pull_request: {} }
