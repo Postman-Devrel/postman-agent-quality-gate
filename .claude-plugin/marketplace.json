@@ -1,9 +1,9 @@
 {
-  "name": "postman-agent-quality-gate",
-  "owner": { "name": "Postman DevRel" },
+  "name": "healthcare-api-quality-gate",
+  "owner": { "name": "healthcare-org-app platform team" },
   "plugins": [
     {
-      "name": "postman-agent-quality-gate",
+      "name": "healthcare-api-quality-gate",
       "source": "./plugin",
       "license": "Apache-2.0",
       "description": "Gate verdict agent and gate loop skill for Claude Code."

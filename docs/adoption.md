@@ -1,5 +1,7 @@
 # Adopting the gate
 
+For a healthcare-org-app service: add the workflow below (section 4) to the service repository, add the `POSTMAN_API_KEY` secret, and make the `gate / quality-gate` check required. The gate only reads the service's Postman project, so nothing in the service code changes. Questions go to the platform team, which owns this repository.
+
 ## 1. Have a Postman project
 
 The gate reads the Postman project: one OpenAPI 3 spec and one v3 collection, and nothing else (no code, no build). Two ways to declare them. Start with the one that matches your setup.
@@ -88,7 +90,7 @@ Sometimes a lint finding is correct and still intended (for example a trailing s
 |----------|-----|
 | `POSTMAN_API_KEY` | Logs in to Postman (governance lint, YAML run report, Context Graph). Only through the environment, never printed. Without it: syntax-only lint, and `impact` is `not_available`. |
 | `GATE_BASE_REF` | Base ref for the breaking-change comparison. Default: the remote default branch (`origin/HEAD`, else `origin/main`, `origin/master`). The comparison uses the merge base. |
-| `PQG_RUNNER_COMMAND` | Overrides the runner command quoted in hints (default `npx github:Postman-Devrel/postman-agent-quality-gate#v1`). |
+| `PQG_RUNNER_COMMAND` | Overrides the runner command quoted in hints (default `npx github:healthcare-org-app/healthcare-api-quality-gate#v1`). |
 
 ## 4. GitHub Actions
 
@@ -102,7 +104,7 @@ on:
   workflow_dispatch:
 jobs:
   gate:
-    uses: Postman-Devrel/postman-agent-quality-gate/.github/workflows/gate.yml@v1
+    uses: healthcare-org-app/healthcare-api-quality-gate/.github/workflows/gate.yml@v1
     with:
       extra-paths: 'src/|openapi/'    # optional: more files that make the gate relevant
     secrets:
@@ -118,14 +120,15 @@ Add the repository secret `POSTMAN_API_KEY` (Settings, Secrets and variables, Ac
 ## 5. Locally
 
 ```sh
-npx github:Postman-Devrel/postman-agent-quality-gate#v1 run
+npx github:healthcare-org-app/healthcare-api-quality-gate#v1 run
 ```
 
 Needs Node 22+ and the `postman` CLI (1.76.0) on the PATH; `postman login` for the full verdict. Nothing else: no build, no running server. Run it from the folder that holds `.postman/`. Results land in `gate-results/` (add it to `.gitignore`).
 
-Examples of projects that adopt it:
+Services that adopt it (see the table in the README):
 
-- [`healthcare-org-app/healthcare-appointments`](https://github.com/healthcare-org-app/healthcare-appointments): the reference consumer, a real Python/Flask service known by the Postman Context Graph. It calls `gate.yml@v1` in CI and carries one accepted lint exception (see section on lint exceptions above).
+- [`healthcare-org-app/healthcare-appointments`](https://github.com/healthcare-org-app/healthcare-appointments): the reference consumer, a Python/Flask service known by the Postman Context Graph. It calls `gate.yml@v1` in CI and carries one accepted lint exception (see section on lint exceptions above).
+- [`healthcare-org-app/healthcare-patients`](https://github.com/healthcare-org-app/healthcare-patients): adoption in progress.
 - `examples/spec-only/`: no code at all, run in CI through `gate.yml` by `self-test`.
 
 ## Not covered

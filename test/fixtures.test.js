@@ -10,7 +10,7 @@ const { buildContext, runSteps, runStep } = require('../core/runner');
 const { aggregate } = require('../core/aggregate');
 const { fixture, fakeExec, tmp, project, cliEnabled } = require('./helpers');
 
-const BIN = path.join(__dirname, '..', 'bin', 'postman-agent-quality-gate.js');
+const BIN = path.join(__dirname, '..', 'bin', 'healthcare-api-quality-gate.js');
 const ctxFor = (name, exec) => buildContext({ cwd: fixture(name), resultsDir: tmp(), overrides: exec ? { exec, log() {} } : { log() {} } });
 const cli = (args, cwd) => spawnSync('node', [BIN, ...args], { cwd, encoding: 'utf8' });
 

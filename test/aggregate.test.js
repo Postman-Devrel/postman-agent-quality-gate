@@ -26,7 +26,7 @@ test('all green: A 100, passed, report keeps the fields the mod and reviewer rea
   assert.ok(report.gate_version);
   assert.deepEqual(report.steps[0], { step: 'skills-check', status: 'pass', score: 100 });
   assert.ok(Array.isArray(report.feedback));
-  assert.ok(markdown.startsWith('<!-- postman-agent-quality-gate -->'));
+  assert.ok(markdown.startsWith('<!-- healthcare-api-quality-gate -->'));
 });
 
 test('weighted score and ratings', () => {

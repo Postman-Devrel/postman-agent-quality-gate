@@ -4,7 +4,7 @@
 #   on: { push: {}, pull_request: {} }
 #   jobs:
 #     gate:
-#       uses: Postman-Devrel/postman-agent-quality-gate/.github/workflows/gate.yml@v1
+#       uses: healthcare-org-app/healthcare-api-quality-gate/.github/workflows/gate.yml@v1
 #       secrets: { POSTMAN_API_KEY: "${{ secrets.POSTMAN_API_KEY }}" }
 #       permissions: { contents: read, pull-requests: write, actions: read }
 #
@@ -43,7 +43,7 @@ on:
 # One run per branch: a new push (or the PR event for the same branch) replaces the previous run.
 # The group name differs from the caller's own groups on purpose (same names would cancel each other).
 concurrency:
-  group: postman-agent-quality-gate-${{ github.head_ref || github.ref_name }}
+  group: healthcare-api-quality-gate-${{ github.head_ref || github.ref_name }}
   cancel-in-progress: true
 
 permissions:
@@ -59,7 +59,7 @@ jobs:
         with:
           fetch-depth: 0
       - id: paths
-        uses: Postman-Devrel/postman-agent-quality-gate@v1
+        uses: healthcare-org-app/healthcare-api-quality-gate@v1
         with:
           mode: paths
           config: ${{ inputs.config }}
@@ -111,7 +111,7 @@ jobs:
         with:
           fetch-depth: 0 # the impact step diffs the spec against the base branch
       - name: Run the step (it never fails the job, the aggregate job decides)
-        uses: Postman-Devrel/postman-agent-quality-gate@v1
+        uses: healthcare-org-app/healthcare-api-quality-gate@v1
         env:
           POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
           GATE_BASE_REF: origin/${{ github.base_ref || github.event.repository.default_branch }}
@@ -155,7 +155,7 @@ jobs:
           merge-multiple: true
       - name: Aggregate (score, rating, report, job summary)
         if: needs.changes.outputs.relevant == 'true'
-        uses: Postman-Devrel/postman-agent-quality-gate@v1
+        uses: healthcare-org-app/healthcare-api-quality-gate@v1
         with:
           mode: aggregate
           config: ${{ inputs.config }}
@@ -169,7 +169,7 @@ jobs:
           script: |
             const fs = require('fs');
             const body = fs.readFileSync('gate-results/report.md', 'utf8');
-            const marker = '<!-- postman-agent-quality-gate -->';
+            const marker = '<!-- healthcare-api-quality-gate -->';
             const { owner, repo } = context.repo;
             // pull_request event: the PR is in the context. push event: look up the open PR of the branch.
             let issue_number = context.payload.pull_request?.number;

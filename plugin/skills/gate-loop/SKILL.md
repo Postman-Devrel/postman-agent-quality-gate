@@ -1,6 +1,6 @@
 ---
 name: gate-loop
-description: The fix loop around the postman-agent-quality-gate CI gate. Use for any change to the API contract or its Postman collection that will be pushed: branch, push, gate-verdict, fixes brief to the same coding agent, at most 3 rounds, final report.
+description: The fix loop around the healthcare-api-quality-gate CI gate. Use for any change to the API contract or its Postman collection that will be pushed: branch, push, gate-verdict, fixes brief to the same coding agent, at most 3 rounds, final report.
 ---
 
 # Gate loop
@@ -9,7 +9,7 @@ The gate runs in CI, outside the coding agent. This loop is how a change goes fr
 
 ## The loop
 
-1. **Branch.** Work on a branch, never on the default branch. The project's own coding agent (whatever it is: a subagent, a skill, you) makes the change and pushes. Before pushing, check locally: `npx github:Postman-Devrel/postman-agent-quality-gate#v1 run` (needs the `postman` CLI; results in `gate-results/`). Record the branch and the full commit SHA of the push.
+1. **Branch.** Work on a branch, never on the default branch. The project's own coding agent (whatever it is: a subagent, a skill, you) makes the change and pushes. Before pushing, check locally: `npx github:healthcare-org-app/healthcare-api-quality-gate#v1 run` (needs the `postman` CLI; results in `gate-results/`). Record the branch and the full commit SHA of the push.
 2. **Verdict.** After every push, and on every CI event about a failing `quality-gate` check (whoever triggered it, including an auto-fix), call the **gate-verdict** agent with the branch and that exact SHA (optionally `repo` and `workflow` when they are not `quality-gate`). It waits for the run, reads the gate report and returns a verdict and a numbered fixes brief. Do not read the CI output yourself and do not fix from the raw CI event.
 3. **Fix.** If the verdict is FAILED, hand the brief **word for word** to the **same** coding agent (the one that made the change, so it keeps its context), which applies it and pushes to the **same branch**. Go back to step 2 with the new SHA.
 4. **Stop** after 3 rounds, or when the verdict is PASSED, and report: rounds played, rating per round, what changed between rounds, the branch or PR link, and the gaps (below).

@@ -1,6 +1,6 @@
 ---
 name: gate-verdict
-description: Reads the result of the postman-agent-quality-gate CI run for a pushed branch and exact commit SHA, and returns a verdict plus a numbered fixes brief for whatever coding agent the project uses. Read-only: it never edits code. Use it after every push and on every failing quality-gate CI event.
+description: Reads the result of the healthcare-api-quality-gate CI run for a pushed branch and exact commit SHA, and returns a verdict plus a numbered fixes brief for whatever coding agent the project uses. Read-only: it never edits code. Use it after every push and on every failing quality-gate CI event.
 tools: Bash, Read, Grep
 ---
 
