@@ -20,6 +20,7 @@ const DEFAULTS = Object.freeze({
   blockers: { 'contract-lint': 'on_fail', 'contract-tests': 'on_fail', impact: 'on_breaking' },
   required_steps: ['contract-lint', 'contract-tests'],
   'contract-lint': { exceptions: [] },
+  no_regression: null, // { max_drop: <points> }: off by default
 });
 
 class ConfigError extends Error {
@@ -151,6 +152,16 @@ function validateConfig(raw, source = DEFAULT_CONFIG_FILE) {
           });
         }
       }
+    }
+  }
+
+  if (raw.no_regression !== undefined && raw.no_regression !== null) {
+    const nr = raw.no_regression;
+    if (!isObj(nr)) err('"no_regression" must be a mapping (no_regression.max_drop)');
+    else {
+      for (const k of Object.keys(nr)) if (k !== 'max_drop') err(`unknown key "no_regression.${k}" (use max_drop)`);
+      if (typeof nr.max_drop !== 'number' || nr.max_drop < 0 || nr.max_drop > 100) err('"no_regression.max_drop" is required: a number of points between 0 and 100');
+      else cfg.no_regression = { max_drop: nr.max_drop };
     }
   }
 

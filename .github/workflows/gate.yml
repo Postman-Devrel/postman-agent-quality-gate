@@ -8,7 +8,7 @@
 #       secrets: { POSTMAN_API_KEY: "${{ secrets.POSTMAN_API_KEY }}" }
 #       permissions: { contents: read, pull-requests: write, actions: read }
 #
-# changes -> one job per step (matrix) -> aggregate, comment, decide. The gate runs only when something it
+# changes -> one job per step (matrix) + the baseline of the base commit -> aggregate, comment, decide. The gate runs only when something it
 # judges changed (the Postman project, the config file, extra paths); otherwise the "quality-gate" job succeeds
 # at once and says why, so it can still be a required check. It runs in CI, outside the coding agent.
 #
@@ -128,8 +128,70 @@ jobs:
           path: gate-results/${{ matrix.step }}.json
           if-no-files-found: warn
 
+  # Quality of the base commit, for the delta: the gate-report of the latest successful gate run on that exact
+  # commit when it is comparable, else the quality steps run on the base commit. Never fails the run: without a
+  # baseline the report says "not comparable".
+  baseline:
+    needs: changes
+    if: needs.changes.outputs.relevant == 'true'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      actions: read # to find and download the gate-report of the base commit
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          fetch-depth: 0
+      - id: base
+        env:
+          EVENT: ${{ github.event_name }}
+          BASE_REF: ${{ github.base_ref }}
+          BEFORE: ${{ github.event.before }}
+          DEFAULT_BRANCH: ${{ github.event.repository.default_branch }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          # The base commit: what the branch forked from (PR or branch), or what a push to the default branch replaced.
+          name="${BASE_REF:-$DEFAULT_BRANCH}"
+          ref="origin/$name"
+          if [ "$EVENT" = "push" ] && [ "$REF_NAME" = "$DEFAULT_BRANCH" ] && [ -n "$BEFORE" ] && [ "$BEFORE" != "0000000000000000000000000000000000000000" ] && git cat-file -e "$BEFORE^{commit}" 2>/dev/null; then ref="$BEFORE"; fi
+          sha="$(git merge-base HEAD "$ref" 2>/dev/null || true)"
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "Base: $name at ${sha:-unknown}"
+      - name: Gate report of the base commit (latest successful run on that exact SHA)
+        if: steps.base.outputs.sha != ''
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ steps.base.outputs.sha }}
+          WORKFLOW: ${{ github.workflow }}
+        run: |
+          run_id="$(gh run list --workflow "$WORKFLOW" --commit "$SHA" --status success --limit 1 --json databaseId --jq '.[0].databaseId // empty')"
+          if [ -z "$run_id" ]; then echo "No successful gate run on $SHA: the quality steps will be run on it."; exit 0; fi
+          gh run download "$run_id" -n gate-report -D "$RUNNER_TEMP/gate-base" && echo "Using the gate-report of run $run_id" || echo "No gate-report artifact on run $run_id"
+      - name: Baseline (the report above if comparable, else the quality steps on the base commit)
+        id: baseline
+        continue-on-error: true
+        uses: healthcare-org-app/healthcare-api-quality-gate@v1
+        env:
+          POSTMAN_API_KEY: ${{ secrets.POSTMAN_API_KEY }}
+          GATE_BASE_REF: ${{ steps.base.outputs.sha }}
+          GATE_BASE_NAME: ${{ steps.base.outputs.name }}
+        with:
+          mode: baseline
+          config: ${{ inputs.config }}
+          working-directory: ${{ inputs.working-directory }}
+          baseline-report: ${{ runner.temp }}/gate-base/report.json
+          results-dir: ${{ github.workspace }}/gate-results
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        if: always()
+        with:
+          name: gate-baseline
+          path: gate-results/baseline.json
+          if-no-files-found: ignore
+
   quality-gate:
-    needs: [changes, gate]
+    needs: [changes, gate, baseline]
     # Decide even when a gate job crashed (a missing result counts as not_available), but not when the
     # whole run was cancelled by the concurrency group: that run has no results and must not report a failure.
     if: ${{ always() && !cancelled() }}
@@ -139,14 +201,15 @@ jobs:
       pull-requests: write # to post the report comment
       actions: read
     steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
       - name: Gate not needed for this change
         if: needs.changes.outputs.relevant != 'true'
-        run: |
-          { echo "### Quality gate skipped"; echo; echo "No file the gate judges changed (Postman project, config file, extra paths). Nothing to score."; } >> "$GITHUB_STEP_SUMMARY"
-          mkdir -p gate-results
-          echo '{"skipped":true,"reason":"no relevant change"}' > gate-results/report.json
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        if: needs.changes.outputs.relevant == 'true'
+        uses: healthcare-org-app/healthcare-api-quality-gate@v1
+        with:
+          mode: skipped
+          base: ${{ github.base_ref || github.event.repository.default_branch }}
+          working-directory: ${{ inputs.working-directory }}
+          results-dir: ${{ github.workspace }}/gate-results
       - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         if: needs.changes.outputs.relevant == 'true'
         with:
@@ -162,9 +225,11 @@ jobs:
           working-directory: ${{ inputs.working-directory }}
           results-dir: ${{ github.workspace }}/gate-results
       - name: Post or update the PR comment
-        if: needs.changes.outputs.relevant == 'true' && github.event_name != 'workflow_dispatch'
+        if: github.event_name != 'workflow_dispatch'
         continue-on-error: true # fork PRs get a read-only token
         uses: actions/github-script@60a0d83039c74a4aee543508d2ffcb1c3799cdea # v7.0.1
+        env:
+          SKIPPED: ${{ needs.changes.outputs.relevant != 'true' }}
         with:
           script: |
             const fs = require('fs');
@@ -182,6 +247,8 @@ jobs:
             const existing = comments.find((c) => c.body && c.body.includes(marker));
             if (existing) {
               await github.rest.issues.updateComment({ owner, repo, comment_id: existing.id, body });
+            } else if (process.env.SKIPPED === 'true') {
+              core.info('Gate skipped and no gate comment on this PR: nothing to update.'); // never create a comment for a skip
             } else {
               await github.rest.issues.createComment({ owner, repo, issue_number, body });
             }

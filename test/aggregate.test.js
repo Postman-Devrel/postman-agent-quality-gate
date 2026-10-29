@@ -94,8 +94,8 @@ test('a required step not_available caps the rating at E and the headline says w
   // an optional step not_available leaves the rating alone
   const opt = run({ impact: na('impact') });
   assert.equal(opt.report.rating, 'A');
-  assert.equal(opt.report.headline, null);
-  assert.match(opt.markdown, /rating A \(100\/100\)/);
+  assert.match(opt.report.headline, /^PASSED \(rating A, 100\/100\)/);
+  assert.match(opt.markdown, /PASSED \(rating A, 100\/100\)/);
 });
 
 test('not_available steps are excluded and the weights re-normalized', () => {
@@ -165,8 +165,8 @@ test('accepted lint exceptions: honest headline, report.json count, report.md se
   assert.match(markdown, /PASSED with 1 accepted lint exception/);
 });
 
-test('no accepted exception: no headline and no section', () => {
+test('no accepted exception: plain headline and no section', () => {
   const { report, markdown } = run();
-  assert.equal(report.headline, null);
+  assert.doesNotMatch(report.headline, /accepted/);
   assert.doesNotMatch(markdown, /Accepted exceptions/);
 });
