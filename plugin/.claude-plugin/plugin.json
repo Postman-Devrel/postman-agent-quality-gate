@@ -1,6 +1,6 @@
 {
   "name": "postman-agent-quality-gate",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Works with the postman-agent-quality-gate CI gate: a gate-verdict agent that reads the CI result and writes a fixes brief, and a gate-loop skill for the fix loop.",
   "author": { "name": "Postman DevRel" },
   "license": "Apache-2.0"
