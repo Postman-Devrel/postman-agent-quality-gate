@@ -144,7 +144,7 @@ test('accepted exceptions and reproduce blocks are collapsed; footer carries the
   assert.match(m, /<details><summary>Accepted exceptions \(1, human decisions\)<\/summary>\n\nThese findings are removed/);
   assert.match(m, /<details><summary>Reproduce locally<\/summary>\n\n/);
   assert.match(m, /\*\*contract-lint\*\*: `npx github:healthcare-org-app\/healthcare-api-quality-gate#v1 run contract-lint`\s+underlying: `postman spec lint x\.yaml`/);
-  assert.match(m, new RegExp(`<sub>healthcare-api-quality-gate ${GATE_VERSION} · Postman CLI 1\\.76\\.0 · spec \`openapi\\.yaml\` \\(openapi-3\\) · collection \`postman/collections/c\` · baseline: \`main\` @ \`bbbbbbb\` \\(gate report of that commit\\) · API quality index \\(contract-lint, contract-tests, coverage, ai-readiness\\): 100 → 100 · base score 100 reconstructed \\(impact counted 100 on main, skills-check from this run\\) · score weights: .*contract-lint 25`));
+  assert.match(m, new RegExp(`<sub>healthcare-api-quality-gate ${GATE_VERSION} · Postman CLI 1\\.76\\.0 · spec \`openapi\\.yaml\` \\(openapi-3\\) · collection \`postman/collections/c\` · baseline: \`main\` @ \`bbbbbbb\` \\(gate report of that commit\\) · API quality index \\(contract-lint, contract-tests, coverage, ai-readiness\\): 100 → 100 · base score 100 reconstructed from main's steps \\(gate report of that commit\\), impact counted 100, skills-check from this run · score weights: .*contract-lint 25`));
 });
 
 test('plural helper and step summaries', () => {

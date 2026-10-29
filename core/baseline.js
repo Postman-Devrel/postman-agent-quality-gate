@@ -37,7 +37,7 @@ function fromReport(ctx, base, file) {
   const steps = scoresOf(report.steps);
   const index = indexFromScores(ctx.config, steps);
   if (index === null) return { reason: 'the base report has no scored quality step' };
-  return { baseline: { ref: base.ref, sha: base.sha, source: 'artifact', gate_version: report.gate_version, quality_index: index, steps, ...(typeof report.score === 'number' ? { score: report.score } : {}) } };
+  return { baseline: { ref: base.ref, sha: base.sha, source: 'artifact', gate_version: report.gate_version, quality_index: index, steps } };
 }
 
 /** Runs the quality steps on a worktree of the base commit. Never throws. */

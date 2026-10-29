@@ -263,7 +263,7 @@ function renderMarkdown(cfg, report, steps, quality = {}) {
     ...(report.collection ? [`collection \`${report.collection.path}\``] : []),
     ...(b && b.source !== 'none' && b.sha ? [`baseline: \`${label}\` @ \`${String(b.sha).slice(0, 7)}\` (${b.source === 'artifact' ? 'gate report of that commit' : 'steps re-run on that commit'})`] : []),
     `API quality index (${QUALITY_STEPS.join(', ')}): ${report.quality_index === null ? 'not available' : delta ? `${delta.base} → ${delta.head}` : report.quality_index}`,
-    ...(sDelta ? [`base score ${sDelta.base}${sDelta.source === 'artifact' ? ' from the gate report of that commit' : ` reconstructed (impact counted 100 on ${label}, skills-check from this run)`}`] : []),
+    ...(sDelta ? [`base score ${sDelta.base} reconstructed from ${label}'s steps (${sDelta.source === 'artifact' ? 'gate report of that commit' : 're-run'}), impact counted 100, skills-check from this run`] : []),
     ...(weights ? [`score weights: ${weights}`] : []),
   ];
   lines.push(`<sub>${foot.join(' · ')}</sub>`, '');
