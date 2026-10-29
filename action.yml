@@ -1,6 +1,6 @@
-name: Postman agent quality gate
+name: healthcare-api-quality-gate
 description: Runs the quality gate steps (or the aggregation) on a project that has a Postman project (spec, collection).
-author: Postman
+author: healthcare-org-app platform team
 
 inputs:
   mode:
@@ -66,7 +66,7 @@ runs:
         CONFIG: ${{ inputs.config }}
       run: |
         args=(); [ -n "$CONFIG" ] && args+=(--config "$CONFIG")
-        regex="$(node "$ACTION_PATH/bin/postman-agent-quality-gate.js" paths "${args[@]}")"
+        regex="$(node "$ACTION_PATH/bin/healthcare-api-quality-gate.js" paths "${args[@]}")"
         echo "regex=$regex" >> "$GITHUB_OUTPUT"
     - name: Run the gate, a step never fails the job (the aggregation decides)
       if: inputs.mode == 'run' || inputs.mode == 'aggregate'
@@ -85,4 +85,4 @@ runs:
         args+=(--results-dir "$RESULTS_DIR")
         [ -n "$CONFIG" ] && args+=(--config "$CONFIG")
         [ "$NO_EXIT_CODE" = true ] && args+=(--no-exit-code)
-        node "$ACTION_PATH/bin/postman-agent-quality-gate.js" "${args[@]}"
+        node "$ACTION_PATH/bin/healthcare-api-quality-gate.js" "${args[@]}"

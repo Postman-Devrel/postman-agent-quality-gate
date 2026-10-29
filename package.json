@@ -1,12 +1,12 @@
 {
-  "name": "postman-agent-quality-gate",
-  "version": "0.4.0",
+  "name": "healthcare-api-quality-gate",
+  "version": "0.5.0",
   "description": "A quality gate for API projects that depends only on the Postman project (spec, collection, workspace).",
   "private": true,
   "license": "Apache-2.0",
   "main": "core/index.js",
   "bin": {
-    "postman-agent-quality-gate": "bin/postman-agent-quality-gate.js"
+    "healthcare-api-quality-gate": "bin/healthcare-api-quality-gate.js"
   },
   "engines": {
     "node": ">=22"
@@ -15,7 +15,7 @@
   "scripts": {
     "test": "node --test \"test/*.test.js\"",
     "test:cli": "PQG_CLI_TESTS=1 node --test \"test/*.test.js\"",
-    "gate": "node bin/postman-agent-quality-gate.js run"
+    "gate": "node bin/healthcare-api-quality-gate.js run"
   },
   "dependencies": {
     "yaml": "^2.8.1"

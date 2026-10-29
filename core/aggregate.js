@@ -135,7 +135,7 @@ function renderMarkdown(cfg, report, steps) {
   for (const s of steps.filter((x) => (x.status === 'warn' || x.status === 'fail') && (x.details || []).length)) {
     lines.push(`<details><summary>${ICON[s.status]} ${s.step}: details</summary>`, '', '```json', JSON.stringify(s.details, null, 2).slice(0, 3000), '```', '', '</details>', '');
   }
-  lines.push(`<sub>postman-agent-quality-gate ${GATE_VERSION}${report.cli_version ? ` · Postman CLI ${report.cli_version}` : ''} · re-run a step: \`${RUNNER_COMMAND} run <step>\`</sub>`, '');
+  lines.push(`<sub>healthcare-api-quality-gate ${GATE_VERSION}${report.cli_version ? ` · Postman CLI ${report.cli_version}` : ''} · re-run a step: \`${RUNNER_COMMAND} run <step>\`</sub>`, '');
   return lines.join('\n');
 }
 

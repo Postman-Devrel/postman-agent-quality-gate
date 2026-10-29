@@ -5,14 +5,14 @@ const pkg = require('../package.json');
 // How a project invokes the runner. Hints and docs cite this ONE constant.
 // Distributed from Git first: `#v1` is the moving major tag of the repository.
 // Override with PQG_RUNNER_COMMAND (e.g. for a fork or a local checkout).
-const DEFAULT_RUNNER_COMMAND = 'npx github:Postman-Devrel/postman-agent-quality-gate#v1';
+const DEFAULT_RUNNER_COMMAND = 'npx github:healthcare-org-app/healthcare-api-quality-gate#v1';
 const RUNNER_COMMAND = process.env.PQG_RUNNER_COMMAND || DEFAULT_RUNNER_COMMAND;
 
 module.exports = {
   GATE_VERSION: pkg.version,
   POSTMAN_CLI_VERSION: pkg.postmanCli, // pinned in package.json, nowhere else
   RUNNER_COMMAND,
-  REPORT_MARKER: '<!-- postman-agent-quality-gate -->',
+  REPORT_MARKER: '<!-- healthcare-api-quality-gate -->',
   SCHEMA_VERSION: 1,
   // A degraded step (its check was weakened, e.g. rules skipped) never scores above the warn level.
   DEGRADED_SCORE_CAP: 70,

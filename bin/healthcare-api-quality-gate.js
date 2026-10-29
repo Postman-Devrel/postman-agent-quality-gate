@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 'use strict';
-// postman-agent-quality-gate run [step...] [--config f] [--results-dir d] [--no-exit-code]
-// postman-agent-quality-gate aggregate [--config f] [--results-dir d] [--no-exit-code]
-// postman-agent-quality-gate paths [--config f]   (CI plumbing: ERE of the files the gate judges)
+// healthcare-api-quality-gate run [step...] [--config f] [--results-dir d] [--no-exit-code]
+// healthcare-api-quality-gate aggregate [--config f] [--results-dir d] [--no-exit-code]
+// healthcare-api-quality-gate paths [--config f]   (CI plumbing: ERE of the files the gate judges)
 const path = require('path');
 const { ConfigError, loadConfig } = require('../core/config');
 const { buildContext, runSteps, cliVersion } = require('../core/runner');
@@ -11,11 +11,11 @@ const { relevantRegex } = require('../core/paths');
 const { readResults, writeReport, clearResults } = require('../core/report');
 const { STEP_IDS, DEFAULT_RESULTS_DIR, GATE_VERSION, POSTMAN_CLI_VERSION } = require('../core/constants');
 
-const USAGE = `postman-agent-quality-gate ${GATE_VERSION} (Postman CLI ${POSTMAN_CLI_VERSION})
+const USAGE = `healthcare-api-quality-gate ${GATE_VERSION} (Postman CLI ${POSTMAN_CLI_VERSION})
 
 Usage:
-  postman-agent-quality-gate run [step...] [--config f] [--results-dir d] [--no-exit-code]
-  postman-agent-quality-gate aggregate [--config f] [--results-dir d] [--no-exit-code]
+  healthcare-api-quality-gate run [step...] [--config f] [--results-dir d] [--no-exit-code]
+  healthcare-api-quality-gate aggregate [--config f] [--results-dir d] [--no-exit-code]
 
 Steps: ${STEP_IDS.join(', ')}
 "run" without a step runs every enabled step, then aggregates (exit 1 when the gate fails).

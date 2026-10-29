@@ -1,5 +1,7 @@
 # Architecture
 
+This repository is owned by the healthcare-org-app platform team. Services across the org call the gate from their own CI; it is built on the Postman CLI.
+
 ## Principle
 
 The gate reads the **Postman project**: `.postman/resources.yaml`, the spec and the collection it points to. It has no JUnit, no build, no language toolchain. Code-versus-contract conformance belongs to the consuming project's own CI.
@@ -56,7 +58,7 @@ Pinned in one place: `postmanCli` in `package.json` (1.76.0). The action install
 
 ## CI: one tag, two references
 
-A reusable workflow runs in the **caller's** repository: `actions/checkout` fetches the caller's code, not the gate's. The workflow therefore gets the gate code through the **composite action** `Postman-Devrel/postman-agent-quality-gate@v1`, which runs from `${{ github.action_path }}` (the action's own checkout, at that ref). A `uses:` ref cannot be an expression, so the action ref is written in `gate.yml`. The rule is:
+A reusable workflow runs in the **caller's** repository: `actions/checkout` fetches the caller's code, not the gate's. The workflow therefore gets the gate code through the **composite action** `healthcare-org-app/healthcare-api-quality-gate@v1`, which runs from `${{ github.action_path }}` (the action's own checkout, at that ref). A `uses:` ref cannot be an expression, so the action ref is written in `gate.yml`. The rule is:
 
 - the caller writes `.../gate.yml@v1`; inside, the action is referenced at the same `@v1`. One moving major tag, two references that must move together;
 - a release process moves `v1` (and `v1.x.y`) only after `self-test` is green on that commit, and bumping the major means editing the action ref inside `gate.yml` in the same commit.
@@ -64,7 +66,7 @@ A reusable workflow runs in the **caller's** repository: `actions/checkout` fetc
 Limits:
 
 - A caller that pins the workflow to a SHA or a branch (`gate.yml@<sha>`) still gets the action at `@v1`: the two can drift. To pin tightly, pin both through a fork or tag (`@v1.2.3` needs the inner refs edited at release; not automated in v1).
-- The composite action is public-repo friendly. If the repository goes private, callers need the repository's Actions access setting ("accessible from repositories in the organization").
+- If this repository is private, its Actions access setting must allow repositories in the organization to use its actions and reusable workflows; every service in the org calls it.
 - The runner installs its dependencies on every job (`npm ci --omit=dev`, one package) and the Postman CLI from npm; there is no caching in v1.
 - `self-test.yml` uses the local action (`uses: ./`), so the repository tests the code of the commit it runs on, not a tag.
 
@@ -85,4 +87,4 @@ A project can accept a specific contract-lint finding with `contract-lint.except
 
 ## Out of scope in v1
 
-External steps, other spec formats than OpenAPI 3, the Claude Code plugin (`plugin/`, `.claude-plugin/marketplace.json` will live in this repository later), a LICENSE (owner decision), npm publication.
+External steps, other spec formats than OpenAPI 3, npm publication (the gate is distributed from this repository through the `v1` tag). The Claude Code plugin lives in `plugin/`, with its marketplace file `.claude-plugin/marketplace.json`.
