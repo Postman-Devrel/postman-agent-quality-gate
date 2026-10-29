@@ -4,7 +4,7 @@ The API quality gate of the healthcare-org-app platform. Each service (about 105
 
 It reads only the service's Postman project (spec, collection, workspace): never the application code or its language. It is built on the Postman CLI (lint, mock, collection run, AI readiness, skills check), the Postman plugin skills committed in each service, and the Postman Context Graph for the list of known consumers.
 
-Owner: healthcare-org-app platform team. Status: 0.6.1, distributed from this repository (no npm publish). Node 22, one runtime dependency (`yaml`), Postman CLI 1.76.0.
+Owner: healthcare-org-app platform team. Status: 0.6.2, distributed from this repository (no npm publish). Node 22, one runtime dependency (`yaml`), Postman CLI 1.76.0.
 
 ## Services using it
 
@@ -68,7 +68,7 @@ Inputs are discovered from `.postman/resources.yaml` (`cloudResources.specs` and
 
 ## Outputs
 
-`gate-results/<step>.json` per step, then `report.json` (`schema_version`, `gate_version`, `cli_version`, `spec`, `collection`, `commit`, `config_hash`, `passed`, `score`, `rating`, `headline`, `quality_index`, `baseline`, `delta`, `risk`, `no_regression` when the ratchet is set, `blockers`, `feedback[]`, `steps[]` with `accepted_exceptions` when lint exceptions are configured) and `report.md` (posted as a PR comment, marker `<!-- healthcare-api-quality-gate -->`, with a base to head column for the quality steps). When the workflow decides nothing the gate judges changed against the base, `report.json` is `{ skipped: true, ... }` and an existing gate comment on the PR is updated in place to say so (none is created).
+`gate-results/<step>.json` per step, then `report.json` (`schema_version`, `gate_version`, `cli_version`, `spec`, `collection`, `commit`, `run_url` (in CI), `config_hash`, `passed`, `score`, `rating`, `headline`, `quality_index`, `baseline`, `delta`, `risk`, `no_regression` when the ratchet is set, `blockers`, `feedback[]`, `steps[]` with `accepted_exceptions` when lint exceptions are configured) and `report.md` (posted as a PR comment, marker `<!-- healthcare-api-quality-gate -->`: title PASSED or FAILED, the API quality change against the base first, then change risk, the rating line, a step table with a `vs main` column for the quality steps, Blockers, and collapsed What to fix / Suggestions, Accepted exceptions and Reproduce locally). When the workflow decides nothing the gate judges changed against the base, `report.json` is `{ skipped: true, ... }` and an existing gate comment on the PR is updated in place to say so (none is created).
 
 ## Repository
 

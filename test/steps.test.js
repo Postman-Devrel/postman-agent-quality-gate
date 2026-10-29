@@ -36,7 +36,7 @@ test('contract-lint: clean spec passes with 100', () => {
 
 test('contract-lint: 2 errors + 1 warning -> fail, score 100 - 80 - 10', () => {
   const r = lint.parseLint(sample('lint-errors.json'), 'specs/pets.yaml', 'cmd');
-  assert.deepEqual([r.status, r.score, r.summary], ['fail', 10, '2 error(s), 1 warning(s), 0 other']);
+  assert.deepEqual([r.status, r.score, r.summary], ['fail', 10, '2 errors, 1 warning, 0 other']);
   assert.match(r.details[0].hint, /^Fix specs\/pets\.yaml at paths\.\/pets\.post.*line 55/);
   assert.ok(r.details[0].hint.includes(`${RUNNER_COMMAND} run contract-lint`));
 });

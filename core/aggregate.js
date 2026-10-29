@@ -1,8 +1,8 @@
 'use strict';
 // Aggregation: step results -> composite score, rating, blockers, feedback, report.json and report.md.
 // This is the only place that decides pass or fail.
-const { applyDegraded } = require('./step-result');
-const { QUALITY_STEPS, indexFromScores, scoresOf, computeDelta, changeRisk, configHash, ratchet, deltaText, riskText } = require('./quality');
+const { applyDegraded, plural } = require('./step-result');
+const { QUALITY_STEPS, indexFromScores, scoresOf, computeDelta, changeRisk, configHash, ratchet, deltaText, riskText, signed } = require('./quality');
 const { LETTERS, REPORT_MARKER, SCHEMA_VERSION, GATE_VERSION, RUNNER_COMMAND } = require('./constants');
 
 const ICON = { pass: '🟢', warn: '🟠', fail: '🔴', not_available: '⚪' };
@@ -39,7 +39,10 @@ function aggregate(cfg, results, meta = {}) {
     const rule = cfg.blockers[s.step];
     if (rule === 'on_fail' && s.status === 'fail') blockers.push(`${s.step} failed: ${s.summary}`);
     else if (rule === 'on_warn' && (s.status === 'fail' || s.status === 'warn')) blockers.push(`${s.step} is ${s.status}: ${s.summary}`);
-    else if (rule === 'on_breaking' && (s.details || []).some((d) => d && d.breaking === true)) blockers.push(`${s.step}: a change breaks at least one known consumer`);
+    else if (rule === 'on_breaking' && (s.details || []).some((d) => d && d.breaking === true)) {
+      const n = (s.details || []).filter((d) => d && d.check === 'consumer').length;
+      blockers.push(n ? `${s.step}: the change breaks ${plural(n, 'known consumer')}` : `${s.step}: a change breaks at least one known consumer`);
+    }
   }
   for (const id of cfg.required_steps) {
     const s = steps.find((x) => x.step === id);
@@ -61,10 +64,16 @@ function aggregate(cfg, results, meta = {}) {
 
   // Feedback for the coding agent: one entry per finding of a step that is not green.
   const feedback = [];
+  const more = {}; // findings cut by the per-step cap: step -> count (report.json keeps the capped list)
   for (const s of steps.filter((x) => x.status === 'warn' || x.status === 'fail')) {
-    const items = (s.details || []).filter((d) => d && (d.hint || d.result));
+    let items = (s.details || []).filter((d) => d && (d.hint || d.result));
+    // impact: the findings are the breaking changes; the consumers are context, not findings.
+    const changes = items.filter((d) => d.check === 'breaking-change');
+    if (s.step === 'impact' && changes.length) items = changes;
     const useful = items.filter((d) => d.hint);
-    for (const d of (useful.length ? useful : [{ result: s.summary }]).slice(0, 8)) {
+    const found = useful.length ? useful : [{ result: s.summary }];
+    if (found.length > 8) more[s.step] = found.length - 8;
+    for (const d of found.slice(0, 8)) {
       feedback.push({ step: s.step, status: s.status, finding: d.result || s.summary, fix: d.hint || 'See the step summary.' });
     }
   }
@@ -86,6 +95,7 @@ function aggregate(cfg, results, meta = {}) {
     gate_version: GATE_VERSION,
     cli_version: meta.cli_version || null,
     commit: meta.commit || null,
+    ...(meta.run_url ? { run_url: meta.run_url } : {}),
     config_hash: configHash(cfg),
     spec: meta.spec ? { path: meta.spec.path, type: meta.spec.type } : null,
     collection: meta.collection ? { path: meta.collection.path } : null,
@@ -108,53 +118,95 @@ function aggregate(cfg, results, meta = {}) {
       ...(Array.isArray(accepted) ? { accepted_exceptions: accepted.length } : {}),
     })),
   };
-  return { report, markdown: renderMarkdown(cfg, report, steps, { delta, label }) };
+  return { report, markdown: renderMarkdown(cfg, report, steps, { delta, label, more, risk }) };
 }
 
-/** What the baseline says (or why there is none), and the ratchet when one is configured. */
-function qualityLines(report, label, delta) {
+const oneLine = (s) => String(s ?? '').replace(/\s*\n\s*/g, ' ').trim();
+const MINUS = '−';
+
+/** "**🟰 API quality is unchanged from `main`**", then the reason when there is no comparison. */
+function qualityHeader(report, label, delta) {
   const b = report.baseline;
-  const lines = [];
-  if (report.quality_index === null) lines.push('API quality index: not available (no scored step among contract-lint, contract-tests, coverage, ai-readiness).');
-  else if (b && b.source !== 'none' && delta) {
-    lines.push(`API quality index (contract-lint, contract-tests, coverage, ai-readiness): **${delta.head}** against **${delta.base}** on \`${label}\` @ \`${String(b.sha).slice(0, 7)}\` (baseline: ${b.source === 'artifact' ? 'gate report of that commit' : 'steps re-run on that commit'}).`);
-  } else {
-    lines.push(`API quality index: ${report.quality_index}. Not comparable with \`${label}\`: ${(b && b.reason) || 'no baseline'}.`);
+  if (report.quality_index === null) return ['**API quality: not available**', 'No scored step among contract-lint, contract-tests, coverage, ai-readiness.'];
+  if (b && b.source !== 'none' && delta) {
+    const abs = Math.abs(delta.points);
+    if (delta.stable) return [`**🟰 API quality is unchanged from \`${label}\`**`];
+    const up = delta.points > 0;
+    const amount = delta.percent !== null ? `${Math.abs(delta.percent)} %` : `${abs} ${abs === 1 ? 'pt' : 'pts'}`;
+    return [`**${up ? '⬆️' : '⬇️'} API quality is ${up ? 'raised' : 'lowered'} by ${amount} from \`${label}\`**`];
   }
-  if (report.no_regression) {
-    const { max_drop: max, status } = report.no_regression;
-    lines.push(status === 'not_comparable' ? `Ratchet (no_regression.max_drop ${max}): not enforced, no comparable baseline.` : `Ratchet (no_regression.max_drop ${max}): ${status === 'violated' ? 'violated' : 'respected'}.`);
+  return [`**API quality: ${report.quality_index} · not comparable with \`${label}\`**`, `Not comparable with \`${label}\`: ${(b && b.reason) || 'no baseline'}.`];
+}
+
+function riskLine(risk) {
+  if (!risk.assessed) return 'Change risk: ⚪ not assessed';
+  if (risk.breaking) return `Change risk: 🔴 ${riskText(risk)}`;
+  return `Change risk: 🟢 no breaking change${typeof risk.consumers === 'number' ? ` · ${plural(risk.consumers, 'known consumer')}` : ''}`;
+}
+
+function ratchetLine(report) {
+  if (!report.no_regression) return null;
+  const { max_drop: max, status } = report.no_regression;
+  return status === 'not_comparable' ? `Ratchet (no_regression.max_drop ${max}): not enforced, no comparable baseline.` : `Ratchet (no_regression.max_drop ${max}): ${status === 'violated' ? 'violated' : 'respected'}.`;
+}
+
+/** Findings of the feedback grouped by step, one Fix line when the step's findings share the same hint. */
+function renderFindings(feedback, more, { failed = false, consumers = [] } = {}) {
+  const out = [];
+  const order = [...new Set(feedback.map((f) => f.step))];
+  // When the gate failed: blocking (fail) groups first, then the non-blocking ones.
+  if (failed) order.sort((a, b) => (feedback.find((f) => f.step === a).status === 'fail' ? 0 : 1) - (feedback.find((f) => f.step === b).status === 'fail' ? 0 : 1));
+  for (const id of order) {
+    const items = feedback.filter((f) => f.step === id);
+    const shared = items.every((f) => f.fix === items[0].fix);
+    out.push(`**${ICON[items[0].status] || '⚪'} ${id}**${failed && items[0].status === 'warn' ? ' (non-blocking)' : ''}`, '');
+    for (const f of items) out.push(`- ${oneLine(f.finding)}${shared ? '' : `  \n  Fix: ${oneLine(f.fix)}`}`);
+    if (more[id]) out.push(`- +${more[id]} more (see the step output)`);
+    if (id === 'impact' && consumers.length) out.push('', `Affected consumers (${consumers.length}): ${consumers.slice(0, 3).join(', ')}${consumers.length > 3 ? `, +${consumers.length - 3} more` : ''}`);
+    if (shared) out.push('', `Fix: ${oneLine(items[0].fix)}`);
+    out.push('');
   }
-  return lines.flatMap((l) => [l, '']);
+  return out;
 }
 
 function renderMarkdown(cfg, report, steps, quality = {}) {
-  const { passed, rating, score, blockers, feedback, headline } = report;
-  const { delta, label } = quality;
+  const { passed, rating, score, blockers, feedback } = report;
+  const { delta, label, more = {}, risk = { assessed: false } } = quality;
   const baseSteps = report.baseline && report.baseline.steps;
   const withBase = Boolean(delta);
-  const baseCell = (s) => {
+  const vsCell = (s) => {
     if (!withBase || !QUALITY_STEPS.includes(s.step)) return '–';
     const b = baseSteps[s.step];
     if (typeof b !== 'number' || typeof s.score !== 'number') return '–';
-    return b === s.score ? `${b} → ${s.score}` : `${b} → ${s.score} (${s.score > b ? '+' : '−'}${Math.abs(s.score - b)})`;
+    if (b === s.score) return '🟰 0';
+    return s.score > b ? `⬆️ +${s.score - b}` : `⬇️ ${MINUS}${b - s.score}`;
   };
-  const rows = steps.map((s) => {
-    const na = s.status === 'not_available';
-    return `| ${ICON[s.status] || '⚪'} ${s.step} | ${s.status} | ${na ? '–' : s.score} |${withBase ? ` ${baseCell(s)} |` : ''} ${na ? '–' : cfg.weights[s.step]} | ${cell(s.summary)} | ${s.command ? '`' + cell(s.command) + '`' : ''} |`;
-  });
+  const rows = steps.map((s) => `| ${ICON[s.status] || '⚪'} ${s.step} | ${s.status === 'not_available' ? 'n/a' : s.score} |${withBase ? ` ${vsCell(s)} |` : ''} ${cell(s.summary)} |`);
+
+  const missingRequired = cfg.required_steps.filter((id) => steps.some((x) => x.step === id && x.status === 'not_available'));
+  const accepted = report.steps.reduce((n, s) => n + (s.accepted_exceptions || 0), 0);
+  const ratingParts = [
+    `Rating **${rating}** (${score}/100${missingRequired.length ? ' on the steps that ran' : ''})`,
+    ...(missingRequired.length ? [`required step${missingRequired.length > 1 ? 's' : ''} ${missingRequired.join(', ')} did not run`] : []),
+    `required: ${cfg.pass_rating} or better, no blocker`,
+    ...(accepted ? [`${plural(accepted, 'accepted lint exception')}`] : []),
+    ...(report.commit ? [`commit \`${String(report.commit).slice(0, 7)}\``] : []),
+    ...(report.run_url ? [`[CI run](${report.run_url})`] : []),
+  ];
+  const header = qualityHeader(report, label, delta);
   const lines = [
     REPORT_MARKER,
-    `## ${passed ? '✅' : '❌'} API quality gate: ${headline || `rating ${rating} (${score}/100)`}`,
+    `## ${passed ? '✅' : '❌'} API quality gate: ${passed ? 'PASSED' : 'FAILED'}`,
     '',
-    `**${passed ? 'PASSED' : 'FAILED'}**. Required: rating ${cfg.pass_rating} or better and no blocker.`,
+    `${header[0]}  `,
+    ...header.slice(1).map((l) => `${l}  `),
+    `${riskLine(risk)}`,
     '',
-    report.spec ? `Spec: \`${report.spec.path}\` (${report.spec.type})${report.collection ? ` · Collection: \`${report.collection.path}\`` : ''}` : '',
+    ratingParts.join(' · '),
     '',
-    ...qualityLines(report, label, delta),
-    '',
-    `| Step | Status | Score |${withBase ? ` vs ${label} |` : ''} Weight | Summary | Command |`,
-    `|------|--------|------:|${withBase ? '-------:|' : ''}-------:|---------|---------|`,
+    ...(ratchetLine(report) ? [ratchetLine(report), ''] : []),
+    `| Step | Score |${withBase ? ` vs ${label} |` : ''} Summary |`,
+    `|------|------:|${withBase ? ':-----:|' : ''}---------|`,
     ...rows,
     '',
   ];
@@ -167,10 +219,15 @@ function renderMarkdown(cfg, report, steps, quality = {}) {
   if (degraded.length) {
     lines.push('### Degraded (the check ran weakened: at best a warning, score capped, never a full pass)', '', ...degraded.map((s) => `- 🟠 **${s.step}**: ${s.degraded}`), '');
   }
+  const impactStep = steps.find((x) => x.step === 'impact');
+  const impactConsumers = ((impactStep && impactStep.details) || []).filter((d) => d && d.check === 'consumer' && d.name).map((d) => d.name);
+  if (feedback.length) {
+    lines.push(`<details><summary>${passed ? 'Suggestions, non-blocking' : 'What to fix'} (${feedback.length})</summary>`, '', ...renderFindings(feedback, more, { failed: !passed, consumers: impactConsumers }), '</details>', '');
+  }
   const acceptedRows = steps.flatMap((s) => (Array.isArray(s.accepted) ? s.accepted : []).map((a) => ({ step: s.step, ...a })));
   if (acceptedRows.length) {
     lines.push(
-      '### Accepted exceptions (human decisions)',
+      `<details><summary>Accepted exceptions (${acceptedRows.length}, human decisions)</summary>`,
       '',
       'These findings are removed from the score and the blockers because a person accepted them in the gate config. They are still real findings.',
       '',
@@ -178,15 +235,34 @@ function renderMarkdown(cfg, report, steps, quality = {}) {
       '|------|---------|------|--------|',
       ...acceptedRows.map((a) => `| ${a.step} | ${cell(`${a.severity}: ${a.issue ?? ''}`)} | \`${cell(a.path)}\` | ${cell(a.reason)} |`),
       '',
+      '</details>',
+      '',
     );
   }
-  if (feedback.length) {
-    lines.push('### What to fix (for the coding agent)', '', ...feedback.map((f, i) => `${i + 1}. **${f.step}** (${f.status}): ${cell(f.finding)}  \n   Fix: ${cell(f.fix)}`), '');
+  // Raw dump only for details the list above cannot show (neither a result nor a hint).
+  for (const s of steps.filter((x) => x.status === 'warn' || x.status === 'fail')) {
+    const bare = (s.details || []).filter((d) => d && !d.result && !d.hint);
+    if (bare.length) lines.push(`<details><summary>${ICON[s.status]} ${s.step}: raw details (${bare.length})</summary>`, '', '```json', JSON.stringify(bare, null, 2).slice(0, 3000), '```', '', '</details>', '');
   }
-  for (const s of steps.filter((x) => (x.status === 'warn' || x.status === 'fail') && (x.details || []).length)) {
-    lines.push(`<details><summary>${ICON[s.status]} ${s.step}: details</summary>`, '', '```json', JSON.stringify(s.details, null, 2).slice(0, 3000), '```', '', '</details>', '');
-  }
-  lines.push(`<sub>healthcare-api-quality-gate ${GATE_VERSION}${report.cli_version ? ` · Postman CLI ${report.cli_version}` : ''} · re-run a step: \`${RUNNER_COMMAND} run <step>\`</sub>`, '');
+  lines.push(
+    '<details><summary>Reproduce locally</summary>',
+    '',
+    ...steps.flatMap((s) => [`- ${ICON[s.status] || '⚪'} **${s.step}**: \`${RUNNER_COMMAND} run ${s.step}\`${s.command ? `  \n  underlying: \`${oneLine(s.command)}\`` : ''}`]),
+    '',
+    '</details>',
+    '',
+  );
+  const weights = cfg.steps.filter((id) => (cfg.weights[id] || 0) > 0).map((id) => `${id} ${cfg.weights[id]}`).join(', ');
+  const b = report.baseline;
+  const foot = [
+    `healthcare-api-quality-gate ${GATE_VERSION}`,
+    ...(report.cli_version ? [`Postman CLI ${report.cli_version}`] : []),
+    ...(report.spec ? [`spec \`${report.spec.path}\` (${report.spec.type})`] : []),
+    ...(report.collection ? [`collection \`${report.collection.path}\``] : []),
+    ...(b && b.source !== 'none' && b.sha ? [`baseline: \`${label}\` @ \`${String(b.sha).slice(0, 7)}\` (${b.source === 'artifact' ? 'gate report of that commit' : 'steps re-run on that commit'})`] : []),
+    ...(weights ? [`score weights: ${weights}`] : []),
+  ];
+  lines.push(`<sub>${foot.join(' · ')}</sub>`, '');
   return lines.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 

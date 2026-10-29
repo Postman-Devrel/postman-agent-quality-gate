@@ -149,7 +149,7 @@ test('headline: the failing rehearsal, rating, quality delta and risk', () => {
   assert.deepEqual(report.delta, { points: -18, percent: -20, stable: false });
   assert.deepEqual(report.risk, { breaking: true, consumers: 32 });
   assert.equal(report.headline, `rating D (${report.score}/100) · API quality 89 → 71 vs main (−18 pts, −20 %) · breaking change for 32 consumers`);
-  assert.ok(markdown.includes(`## ❌ API quality gate: ${report.headline}`));
+  assert.ok(markdown.includes('## ❌ API quality gate: FAILED\n'));
   assert.deepEqual(report.baseline, base);
 });
 
@@ -157,7 +157,7 @@ test('headline: the passing case, improvement and no breaking change', () => {
   const { report, markdown } = aggregate(cfg, { ...green(), 'ai-readiness': step('ai-readiness', 'pass', 90) }, { baseline: baseline(BASE_ALL, 89) });
   assert.equal(report.quality_index, 97);
   assert.equal(report.headline, `PASSED (rating A, ${report.score}/100) · API quality 89 → 97 vs main (+8 pts, +9 %) · no breaking change`);
-  assert.ok(markdown.includes(`## ✅ API quality gate: ${report.headline}`));
+  assert.ok(markdown.includes('## ✅ API quality gate: PASSED\n'));
 });
 
 test('headline: stable, one consumer, breaking without known consumer, accepted exceptions', () => {
@@ -177,6 +177,7 @@ test('headline: not comparable says why and never prints a delta', () => {
   assert.equal(report.delta, null);
   assert.match(report.headline, /API quality 100, not comparable with main/);
   assert.doesNotMatch(report.headline, /pts/);
+  assert.match(markdown, /\*\*API quality: 100 · not comparable with `main`\*\*/);
   assert.match(markdown, /Not comparable with `main`: no merge base/);
   const missing = aggregate(cfg, green(), {});
   assert.equal(missing.report.baseline.source, 'none');
@@ -186,12 +187,12 @@ test('headline: not comparable says why and never prints a delta', () => {
 test('report.md: per-step base -> head column only when comparable', () => {
   const head = { ...green(), 'contract-tests': step('contract-tests', 'fail', 0) };
   const { markdown } = aggregate(cfg, head, { baseline: baseline(BASE_ALL, 89) });
-  assert.match(markdown, /\| Step \| Status \| Score \| vs main \| Weight \|/);
-  assert.match(markdown, /\| \S+ contract-tests \| fail \| 0 \| 100 → 0 \(−100\) \|/);
-  assert.match(markdown, /\| \S+ ai-readiness \| pass \| 100 \| 60 → 100 \(\+40\) \|/);
-  assert.match(markdown, /\| \S+ impact \| pass \| 100 \| – \|/);
-  assert.match(markdown, /\| \S+ coverage \| pass \| 100 \| 100 → 100 \|/);
-  assert.doesNotMatch(aggregate(cfg, head, {}).markdown, /vs main/);
+  assert.match(markdown, /\| Step \| Score \| vs main \| Summary \|/);
+  assert.match(markdown, /\| \S+ contract-tests \| 0 \| ⬇️ −100 \|/);
+  assert.match(markdown, /\| \S+ ai-readiness \| 100 \| ⬆️ \+40 \|/);
+  assert.match(markdown, /\| \S+ impact \| 100 \| – \|/);
+  assert.match(markdown, /\| \S+ coverage \| 100 \| 🟰 0 \|/);
+  assert.doesNotMatch(aggregate(cfg, head, {}).markdown, /\| vs main \|/);
 });
 
 test('report.json carries the commit and the settings hash; the hash changes with weights, not with blockers', () => {

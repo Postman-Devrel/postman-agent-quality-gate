@@ -86,7 +86,8 @@ test('a required step not_available caps the rating at E and the headline says w
   assert.equal(r.report.rating, 'E');
   assert.equal(r.report.passed, false);
   assert.match(r.report.headline, /rating E, required steps contract-lint, contract-tests did not run \(100\/100 on the steps that ran\)/);
-  assert.match(r.markdown, /## ❌ API quality gate: rating E, required steps contract-lint, contract-tests did not run/);
+  assert.match(r.markdown, /## ❌ API quality gate: FAILED\n/);
+  assert.match(r.markdown, /Rating \*\*E\*\* \(100\/100 on the steps that ran\) · required steps contract-lint, contract-tests did not run/);
   assert.doesNotMatch(r.markdown, /rating A/);
   const one = run({ 'contract-tests': na('contract-tests') });
   assert.equal(one.report.rating, 'E');
@@ -95,7 +96,8 @@ test('a required step not_available caps the rating at E and the headline says w
   const opt = run({ impact: na('impact') });
   assert.equal(opt.report.rating, 'A');
   assert.match(opt.report.headline, /^PASSED \(rating A, 100\/100\)/);
-  assert.match(opt.markdown, /PASSED \(rating A, 100\/100\)/);
+  assert.match(opt.markdown, /## ✅ API quality gate: PASSED\n/);
+  assert.match(opt.markdown, /Rating \*\*A\*\* \(100\/100\) · required: B or better, no blocker/);
 });
 
 test('not_available steps are excluded and the weights re-normalized', () => {
@@ -159,10 +161,10 @@ test('accepted lint exceptions: honest headline, report.json count, report.md se
   assert.match(report.headline, /^PASSED with 1 accepted lint exception /);
   assert.equal(report.steps.find((s) => s.step === 'contract-lint').accepted_exceptions, 1);
   assert.equal(report.steps.find((s) => s.step === 'coverage').accepted_exceptions, undefined);
-  assert.match(markdown, /### Accepted exceptions \(human decisions\)/);
+  assert.match(markdown, /<summary>Accepted exceptions \(1, human decisions\)<\/summary>\n\n/);
   assert.match(markdown, /paths\.\/api\/appointments\//);
   assert.match(markdown, /Real route \\\| coordinated migration/);
-  assert.match(markdown, /PASSED with 1 accepted lint exception/);
+  assert.match(markdown, /Rating \*\*A\*\* \(100\/100\) · required: B or better, no blocker · 1 accepted lint exception/);
 });
 
 test('no accepted exception: plain headline and no section', () => {

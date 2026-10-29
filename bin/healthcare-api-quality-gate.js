@@ -10,7 +10,7 @@ const { ConfigError, loadConfig } = require('../core/config');
 const { buildContext, runSteps, cliVersion } = require('../core/runner');
 const { aggregate } = require('../core/aggregate');
 const { relevantRegex } = require('../core/paths');
-const { readResults, writeReport, clearResults, skippedReport, writeBaseline, readBaseline } = require('../core/report');
+const { readResults, writeReport, clearResults, skippedReport, writeBaseline, readBaseline, runUrl } = require('../core/report');
 const { resolveBaseline } = require('../core/baseline');
 const { STEP_IDS, DEFAULT_RESULTS_DIR, GATE_VERSION, POSTMAN_CLI_VERSION } = require('../core/constants');
 
@@ -89,7 +89,7 @@ function main(argv) {
   const results = readResults(ctx.resultsDir, ctx.config.steps);
   cli = cli || Object.values(results).map((r) => r.cli_version).find(Boolean) || cliVersion(ctx);
   const head = ctx.exec('git', ['rev-parse', 'HEAD'], { cwd, env: ctx.env });
-  const meta = { spec: ctx.spec, collection: ctx.collection, cli_version: cli, commit: head.status === 0 ? head.stdout.trim() : null, baseline: readBaseline(ctx.resultsDir) };
+  const meta = { spec: ctx.spec, collection: ctx.collection, cli_version: cli, commit: head.status === 0 ? head.stdout.trim() : null, baseline: readBaseline(ctx.resultsDir), run_url: runUrl(ctx.env) };
   const { report, markdown } = aggregate(ctx.config, results, meta);
   writeReport(ctx.resultsDir, report, markdown);
   console.log(markdown);
